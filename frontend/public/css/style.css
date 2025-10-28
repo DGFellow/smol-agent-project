@@ -457,3 +457,71 @@ footer {
 
     .btn { width: auto; }
 }
+
+/* Code block container */
+.code-block {
+    margin: 1rem 0;
+    border-radius: 8px;
+    overflow: hidden;
+    background: #1f2937;
+    border: 1px solid #374151;
+}
+
+.code-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 1rem;
+    background: #111827;
+    border-bottom: 1px solid #374151;
+}
+
+.code-lang {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #9ca3af;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.copy-btn {
+    background: transparent;
+    border: 1px solid #374151;
+    color: #9ca3af;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.75rem;
+    transition: all 0.2s;
+}
+
+.copy-btn:hover {
+    background: #374151;
+    color: #fff;
+}
+
+/* Inline code */
+.inline-code {
+    background: rgba(99, 102, 241, 0.1);
+    color: var(--primary);
+    padding: 0.15rem 0.4rem;
+    border-radius: 4px;
+    font-family: 'Courier New', monospace;
+    font-size: 0.9em;
+    border: 1px solid rgba(99, 102, 241, 0.2);
+}
+
+/* Code blocks in messages */
+.message pre {
+    margin: 0;
+    background: transparent;
+}
+
+.message code {
+    display: block;
+    line-height: 1.6;
+    font-size: 0.9rem;
+}
