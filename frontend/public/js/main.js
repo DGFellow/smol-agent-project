@@ -1,25 +1,18 @@
-// Tab switching
-document.querySelectorAll('.tab-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-        const tabName = btn.dataset.tab;
-        
-        // Update buttons
-        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        
-        // Update content
-        document.querySelectorAll('.tab-content').forEach(content => {
-            content.classList.remove('active');
-        });
-        document.getElementById(tabName).classList.add('active');
-    });
-});
+// Generate simple session ID
+const SESSION_ID = 'session_' + Date.now();
+
+// DOM Elements
+const messageInput = document.getElementById('message-input');
+const sendBtn = document.getElementById('send-btn');
+const clearBtn = document.getElementById('clear-btn');
+const chatMessages = document.getElementById('chat-messages');
+const statusText = document.getElementById('status-text');
+const statusDot = document.getElementById('status-indicator');
+const currentAgentBadge = document.getElementById('current-agent');
+const currentModelName = document.getElementById('current-model');
 
 // Status management
 function setStatus(text, type = 'ready') {
-    const statusText = document.getElementById('status-text');
-    const statusDot = document.getElementById('status-indicator');
-    
     statusText.textContent = text;
     statusDot.className = 'status-dot';
     
@@ -30,22 +23,40 @@ function setStatus(text, type = 'ready') {
     }
 }
 
-// Chat Agent
-const chatMessages = document.getElementById('chat-messages');
-const chatInput = document.getElementById('chat-input');
-const chatSend = document.getElementById('chat-send');
-const chatClear = document.getElementById('chat-clear');
+// Update agent indicator
+function updateAgentIndicator(agentType, model) {
+    const agentNames = {
+        'chat': '💬 Chat Mode',
+        'code': '💻 Code Mode'
+    };
+    
+    currentAgentBadge.textContent = agentNames[agentType] || 'Ready';
+    currentModelName.textContent = model || '';
+}
 
-function addMessage(text, sender) {
+// Add message to chat
+function addMessage(text, sender, agentType = 'chat') {
     const messageDiv = document.createElement('div');
-    messageDiv.className = `message ${sender}`;
+    messageDiv.className = `message ${sender} ${agentType}`;
     
     const label = document.createElement('div');
     label.className = 'message-label';
-    label.textContent = sender === 'user' ? 'You' : 'Assistant';
+    
+    if (sender === 'user') {
+        label.textContent = 'You';
+    } else {
+        const agentEmoji = agentType === 'code' ? '💻' : '💬';
+        label.textContent = `${agentEmoji} Assistant`;
+    }
     
     const content = document.createElement('div');
-    content.textContent = text;
+    
+    // Check if response contains code blocks
+    if (text.includes('```')) {
+        content.innerHTML = formatCodeBlocks(text);
+    } else {
+        content.textContent = text;
+    }
     
     messageDiv.appendChild(label);
     messageDiv.appendChild(content);
@@ -53,27 +64,57 @@ function addMessage(text, sender) {
     chatMessages.scrollTop = chatMessages.scrollHeight;
 }
 
-chatSend.addEventListener('click', async () => {
-    const prompt = chatInput.value.trim();
-    if (!prompt) return;
+// Format code blocks in response
+function formatCodeBlocks(text) {
+    // Simple code block formatting
+    return text
+        .replace(/```(\w+)?\n([\s\S]*?)```/g, (match, lang, code) => {
+            const language = lang || 'code';
+            return `<pre><code class="language-${language}">${escapeHtml(code.trim())}</code></pre>`;
+        })
+        .replace(/`([^`]+)`/g, '<code>$1</code>')
+        .replace(/\n/g, '<br>');
+}
+
+// Escape HTML
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Send message
+async function sendMessage() {
+    const message = messageInput.value.trim();
+    if (!message) return;
     
-    addMessage(prompt, 'user');
-    chatInput.value = '';
-    chatSend.disabled = true;
-    setStatus('Thinking...', 'loading');
+    // Add user message
+    addMessage(message, 'user');
+    messageInput.value = '';
+    sendBtn.disabled = true;
+    setStatus('Processing...', 'loading');
     
     try {
-        const response = await fetch('/api/chat', {
+        const response = await fetch('/api/message', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ prompt })
+            body: JSON.stringify({ 
+                message: message,
+                session_id: SESSION_ID
+            })
         });
         
         const data = await response.json();
         
         if (response.ok) {
-            addMessage(data.response, 'assistant');
-            setStatus('Ready');
+            addMessage(data.response, 'assistant', data.agent_used);
+            updateAgentIndicator(data.agent_used, data.model);
+            
+            if (data.needs_language) {
+                setStatus('Waiting for language specification...', 'ready');
+            } else {
+                setStatus('Ready');
+            }
         } else {
             addMessage(`Error: ${data.error}`, 'assistant');
             setStatus('Error', 'error');
@@ -82,104 +123,60 @@ chatSend.addEventListener('click', async () => {
         addMessage(`Error: ${error.message}`, 'assistant');
         setStatus('Error', 'error');
     } finally {
-        chatSend.disabled = false;
+        sendBtn.disabled = false;
+        messageInput.focus();
     }
-});
-
-chatInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        chatSend.click();
-    }
-});
-
-chatClear.addEventListener('click', async () => {
-    try {
-        await fetch('/api/clear', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ agent_type: 'chat' })
-        });
-        chatMessages.innerHTML = '';
-        setStatus('History cleared');
-    } catch (error) {
-        setStatus('Error clearing history', 'error');
-    }
-});
-
-// Code Agent
-const codeOutput = document.getElementById('code-output');
-const codeInput = document.getElementById('code-input');
-const codeSend = document.getElementById('code-send');
-const codeClear = document.getElementById('code-clear');
-const codeLanguage = document.getElementById('code-language');
-
-function addCodeOutput(code) {
-    const outputDiv = document.createElement('div');
-    outputDiv.className = 'message assistant';
-    
-    const label = document.createElement('div');
-    label.className = 'message-label';
-    label.textContent = 'Generated Code';
-    
-    const pre = document.createElement('pre');
-    const codeElement = document.createElement('code');
-    codeElement.textContent = code;
-    pre.appendChild(codeElement);
-    
-    outputDiv.appendChild(label);
-    outputDiv.appendChild(pre);
-    codeOutput.appendChild(outputDiv);
-    codeOutput.scrollTop = codeOutput.scrollHeight;
 }
 
-codeSend.addEventListener('click', async () => {
-    const task = codeInput.value.trim();
-    const language = codeLanguage.value;
+// Clear conversation
+async function clearConversation() {
+    if (!confirm('Clear entire conversation history?')) return;
     
-    if (!task) return;
-    
-    codeInput.value = '';
-    codeSend.disabled = true;
-    setStatus('Generating code...', 'loading');
-    
-    try {
-        const response = await fetch('/api/code', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ task, language })
-        });
-        
-        const data = await response.json();
-        
-        if (response.ok) {
-            addCodeOutput(data.response);
-            setStatus('Ready');
-        } else {
-            addCodeOutput(`Error: ${data.error}`);
-            setStatus('Error', 'error');
-        }
-    } catch (error) {
-        addCodeOutput(`Error: ${error.message}`);
-        setStatus('Error', 'error');
-    } finally {
-        codeSend.disabled = false;
-    }
-});
-
-codeClear.addEventListener('click', async () => {
     try {
         await fetch('/api/clear', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ agent_type: 'code' })
+            body: JSON.stringify({ session_id: SESSION_ID })
         });
-        codeOutput.innerHTML = '';
+        
+        chatMessages.innerHTML = '';
+        updateAgentIndicator('', '');
         setStatus('History cleared');
+        
+        // Add welcome message
+        setTimeout(() => {
+            addMessage(
+                "Hi! I'm your AI assistant. I can help with general questions or write code for you. Just ask naturally, and I'll figure out what you need!",
+                'assistant',
+                'chat'
+            );
+        }, 300);
     } catch (error) {
         setStatus('Error clearing history', 'error');
     }
+}
+
+// Event listeners
+sendBtn.addEventListener('click', sendMessage);
+clearBtn.addEventListener('click', clearConversation);
+
+messageInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+    }
+});
+
+// Auto-resize textarea
+messageInput.addEventListener('input', function() {
+    this.style.height = 'auto';
+    this.style.height = (this.scrollHeight) + 'px';
 });
 
 // Initialize
 setStatus('Ready');
+addMessage(
+    "Hi! I'm your AI assistant. I can help with general questions or write code for you. Just ask naturally, and I'll figure out what you need!",
+    'assistant',
+    'chat'
+);
