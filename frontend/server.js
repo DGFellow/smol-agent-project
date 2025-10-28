@@ -17,15 +17,17 @@ app.set('views', path.join(__dirname, 'views'));
 // Routes
 app.get('/', (req, res) => {
     res.render('index', { 
-        title: 'Smolagent Framework',
+        title: 'Smolagent Framework - Unified AI Assistant',
         backendUrl: BACKEND_URL 
     });
 });
 
-app.post('/api/chat', async (req, res) => {
+// Unified message endpoint
+app.post('/api/message', async (req, res) => {
     try {
-        const response = await axios.post(`${BACKEND_URL}/api/chat`, {
-            prompt: req.body.prompt
+        const response = await axios.post(`${BACKEND_URL}/api/message`, {
+            message: req.body.message,
+            session_id: req.body.session_id
         });
         res.json(response.data);
     } catch (error) {
@@ -35,24 +37,11 @@ app.post('/api/chat', async (req, res) => {
     }
 });
 
-app.post('/api/code', async (req, res) => {
-    try {
-        const response = await axios.post(`${BACKEND_URL}/api/code`, {
-            task: req.body.task,
-            language: req.body.language || 'python'
-        });
-        res.json(response.data);
-    } catch (error) {
-        res.status(500).json({ 
-            error: error.response?.data?.error || 'Backend error' 
-        });
-    }
-});
-
+// Clear history endpoint
 app.post('/api/clear', async (req, res) => {
     try {
         const response = await axios.post(`${BACKEND_URL}/api/clear`, {
-            agent_type: req.body.agent_type || 'chat'
+            session_id: req.body.session_id
         });
         res.json(response.data);
     } catch (error) {
@@ -64,4 +53,5 @@ app.post('/api/clear', async (req, res) => {
 
 app.listen(PORT, () => {
     console.log(`Frontend server running on http://localhost:${PORT}`);
+    console.log(`Connecting to backend at ${BACKEND_URL}`);
 });
