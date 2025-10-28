@@ -60,6 +60,7 @@ npm run dev
 Frontend will be available at: `http://localhost:3000`
 
 ## 🏗️ Project Structure
+```
 smolagent-framework/
 ├── backend/
 │   ├── src/
@@ -90,3 +91,4 @@ smolagent-framework/
 │   ├── package.json
 │   └── .env
 └── README.md
+```
