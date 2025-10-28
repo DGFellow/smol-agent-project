@@ -51,6 +51,10 @@ class BaseAgent:
         
         return response
     
+    def get_last_n_messages(self, n: int = 5) -> list:
+        """Get last N messages from conversation history"""
+        return self.conversation_history[-n*2:] if len(self.conversation_history) > n*2 else self.conversation_history
+
     def clear_history(self):
         """Clear conversation history"""
         self.conversation_history = []
