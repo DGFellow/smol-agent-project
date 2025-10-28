@@ -119,6 +119,24 @@ main {
     margin-right: 20%;
 }
 
+/* Inline tip styling inside the first assistant message */
+.message .tip-inline {
+  margin-top: 0.75rem;
+  padding: 0.9rem 1rem;
+  background: rgba(99, 102, 241, 0.06);
+  border-left: 4px solid var(--primary);
+  border-radius: 8px;
+}
+
+.message .tip-inline .tip-list {
+  margin-top: 0.5rem;
+  margin-left: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.35rem;
+  color: #4b5563;
+}
+
 .message-label {
     font-weight: bold;
     margin-bottom: 0.5rem;
