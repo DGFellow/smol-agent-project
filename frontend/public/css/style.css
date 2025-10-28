@@ -335,16 +335,17 @@ footer {
 /* Textarea inside the pill */
 .composer #message-input {
     flex: 1 1 auto;
-    min-width: 0;         /* override global 300px min-width for flex shrinking */
+    min-width: 0;
     width: 100%;
     border: 0;
     outline: none;
-    resize: vertical;
+    resize: none;                 /* no drag-resize */
+    overflow-y: auto;             /* scroll once we hit the cap */
     padding: 0.75rem 0.25rem;
     background: transparent;
     font-size: 1rem;
-    line-height: 1.4;
-    max-height: 35vh;
+    line-height: 1.4;             /* line height used for the cap calculation */
+    max-height: calc(1.4em * 5 + 1.5rem); /* 5 lines + vertical padding (0.75rem * 2) */
 }
 
 /* Inline actions to the right inside the pill */
