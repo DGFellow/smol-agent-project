@@ -1,0 +1,10 @@
+flask
+flask-cors
+transformers
+accelerate
+bitsandbytes
+sentencepiece
+protobuf
+python-dotenv
+huggingface-hub
+pydantic
