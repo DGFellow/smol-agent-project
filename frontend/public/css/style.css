@@ -295,33 +295,101 @@ footer {
     max-height: 500px;
 }
 
+/* =========================
+   Composer: pill-style bar
+   ========================= */
 .input-area {
-    background: white;
-    padding: 1.5rem;
+    background: transparent;
+    padding: 1rem 0;
     border-radius: 0 0 12px 12px;
-    border-top: 2px solid var(--border);
-    /* NEW: make composer a single row */
+    border-top: none;
     display: flex;
-    align-items: flex-end;   /* buttons bottom-align with textarea */
-    gap: 1rem;
+    align-items: center;
+    justify-content: center;
 }
 
-.button-group {
+/* The pill container that holds icons, textarea, and actions */
+.composer {
     display: flex;
-    gap: 0.75rem;
-    margin-top: 0;          /* keep buttons on same row */
-    flex: 0 0 auto;         /* don't grow, stay compact */
-    align-self: flex-end;   /* align to bottom of textarea */
-}
-
-/* Grow textarea to fill remaining space and remove width clamps */
-.input-area textarea#message-input {
-    flex: 1 1 auto;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem;
     width: 100%;
-    min-width: 0;           /* override global min-width to prevent overflow */
-    /* keep your existing padding/border/resize from global textarea rules */
+    border-radius: 9999px;
+    border: 1px solid var(--border);
+    background: #fff;
+    box-shadow: 0 2px 10px rgba(17, 24, 39, 0.08);
+    transition: box-shadow 0.15s ease, border-color 0.15s ease;
 }
 
+.composer:focus-within {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12), 0 2px 10px rgba(17, 24, 39, 0.08);
+}
+
+/* Left accessory icon (e.g., attach) */
+.icon-btn.attach-btn {
+    color: #6b7280;
+}
+
+/* Textarea inside the pill */
+.composer #message-input {
+    flex: 1 1 auto;
+    min-width: 0;         /* override global 300px min-width for flex shrinking */
+    width: 100%;
+    border: 0;
+    outline: none;
+    resize: vertical;
+    padding: 0.75rem 0.25rem;
+    background: transparent;
+    font-size: 1rem;
+    line-height: 1.4;
+    max-height: 35vh;
+}
+
+/* Inline actions to the right inside the pill */
+.composer .composer-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0;
+}
+
+/* Icon buttons (attach / clear) */
+.icon-btn {
+    width: 36px;
+    height: 36px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9999px;
+    border: 1px solid var(--border);
+    background: #fff;
+    color: #374151;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease, transform 0.05s ease;
+}
+.icon-btn:hover { background: #f9fafb; }
+.icon-btn:active { transform: translateY(1px); }
+
+/* Primary send button inside the pill */
+.send-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    border-radius: 9999px;
+    padding: 0.5rem 0.9rem;
+    border: 1px solid var(--primary);
+    background: var(--primary);
+    color: #fff;
+    cursor: pointer;
+    transition: filter 0.15s ease, transform 0.05s ease;
+}
+.send-btn:hover { filter: brightness(0.96); }
+.send-btn:active { transform: translateY(1px); }
+.send-btn .btn-label { font-weight: 600; }
+
+/* Keep legacy helpers */
 .btn-icon {
     margin-right: 0.5rem;
 }
@@ -396,24 +464,19 @@ footer {
 /* ---------- FLEX HEIGHT OVERRIDES ---------- */
 /* Make the chat view fill the viewport height on wider screens */
 @media (min-width: 768px) {
-    /* Let the chat UI be a column that stretches vertically */
     .chat-interface {
         display: flex;
         flex-direction: column;
-        min-height: 75dvh; /* dynamic viewport units for mobile chrome, etc. */
+        min-height: 75dvh;
     }
-
-    /* Ensure the main card can host a flex column layout cleanly */
     main {
         display: flex;
         flex-direction: column;
     }
-
-    /* Let the messages panel expand to fill remaining space */
     .messages {
         flex: 1 1 auto;
-        min-height: 0;     /* critical to allow flex children to shrink */
-        max-height: none;  /* remove fixed cap so it truly stretches */
+        min-height: 0;
+        max-height: none;
         overflow-y: auto;
     }
 }
@@ -425,13 +488,13 @@ footer {
         gap: 0.5rem;
     }
 
-    /* Keep buttons inline even on mobile (no stacking) */
-    .input-area .button-group {
-        flex-direction: row;
-    }
+    /* Pill tweaks on small screens */
+    .composer { padding: 0.35rem 0.5rem; }
+    .icon-btn { width: 34px; height: 34px; }
+    .send-btn { padding: 0.45rem 0.8rem; }
 
-    /* Keep natural width so inline buttons don’t overflow */
-    .btn {
-        width: auto;
-    }
+    /* Buttons stay inline */
+    .input-area .composer-actions { flex-direction: row; }
+
+    .btn { width: auto; }
 }
