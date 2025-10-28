@@ -1,0 +1,54 @@
+<%- include('header') %>
+
+<main class="container">
+    <div class="tabs">
+        <button class="tab-btn active" data-tab="chat">💬 Chat Agent</button>
+        <button class="tab-btn" data-tab="code">💻 Code Agent</button>
+    </div>
+
+    <!-- Chat Agent Tab -->
+    <div id="chat" class="tab-content active">
+        <div class="chat-container">
+            <div id="chat-messages" class="messages"></div>
+            <div class="input-group">
+                <textarea 
+                    id="chat-input" 
+                    placeholder="Ask me anything..."
+                    rows="3"
+                ></textarea>
+                <button id="chat-send" class="btn btn-primary">Send</button>
+                <button id="chat-clear" class="btn btn-secondary">Clear History</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Code Agent Tab -->
+    <div id="code" class="tab-content">
+        <div class="code-container">
+            <div id="code-output" class="code-output"></div>
+            <div class="input-group">
+                <select id="code-language">
+                    <option value="python">Python</option>
+                    <option value="javascript">JavaScript</option>
+                    <option value="java">Java</option>
+                    <option value="cpp">C++</option>
+                    <option value="rust">Rust</option>
+                </select>
+                <textarea 
+                    id="code-input" 
+                    placeholder="Describe what code you want..."
+                    rows="3"
+                ></textarea>
+                <button id="code-send" class="btn btn-primary">Generate Code</button>
+                <button id="code-clear" class="btn btn-secondary">Clear History</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="status">
+        <span id="status-indicator" class="status-dot"></span>
+        <span id="status-text">Ready</span>
+    </div>
+</main>
+
+<%- include('footer') %>
