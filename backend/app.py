@@ -2,6 +2,7 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 from dotenv import load_dotenv
 import os
+import time
 
 # Project imports
 from src.models.model_loader import ModelLoader
@@ -10,6 +11,7 @@ from src.agents.chat_agent import ChatAgent
 from src.agents.router_agent import RouterAgent, LanguageDetectorAgent
 from src.utils.text_processor import TextProcessor
 from src.utils.logger import AgentLogger
+from src.utils.memory import ConversationMemory
 
 load_dotenv()
 
@@ -21,8 +23,13 @@ models = {}
 agents = {}
 sessions = {}
 
-# Logger
+# Utilities
 logger = AgentLogger()
+memory = ConversationMemory()
+
+# Performance tracking
+request_count = 0
+total_response_time = 0
 
 def initialize_models():
     """Load models and construct agents."""
@@ -57,16 +64,25 @@ except Exception as e:
 
 @app.route('/api/health', methods=['GET'])
 def health():
-    """Health check"""
+    """Health check with stats"""
+    avg_response_time = (total_response_time / request_count) if request_count > 0 else 0
+    
     return jsonify({
         "status": "healthy",
         "models": list(models.keys()),
-        "agents": list(agents.keys())
+        "agents": list(agents.keys()),
+        "stats": {
+            "total_requests": request_count,
+            "avg_response_time_ms": round(avg_response_time * 1000, 2)
+        }
     })
 
 @app.route('/api/message', methods=['POST'])
 def unified_message():
     """Unified message endpoint - seamless agent routing"""
+    global request_count, total_response_time
+    start_time = time.time()
+    
     data = request.json
     message = data.get('message', '').strip()
     session_id = data.get('session_id', 'default')
@@ -77,12 +93,18 @@ def unified_message():
     # Sanitize input
     message = TextProcessor.sanitize_input(message)
     
+    # Check token count
+    token_count = TextProcessor.count_tokens_estimate(message)
+    if token_count > 2000:
+        return jsonify({"error": "Message too long. Please shorten your request."}), 400
+    
     try:
         # Initialize session
         if session_id not in sessions:
             sessions[session_id] = {
                 'waiting_for_language': False,
-                'pending_task': None
+                'pending_task': None,
+                'message_history': []
             }
         
         session = sessions[session_id]
@@ -96,11 +118,29 @@ def unified_message():
             result = code_agent.handle_language_response(message)
             session['waiting_for_language'] = False
             
+            # Add to history
+            session['message_history'].append({
+                "role": "user",
+                "content": message,
+                "timestamp": time.time()
+            })
+            session['message_history'].append({
+                "role": "assistant",
+                "content": result['response'],
+                "timestamp": time.time()
+            })
+            
             logger.log_response(result['response'], "code", session_id)
+            
+            # Track performance
+            elapsed = time.time() - start_time
+            request_count += 1
+            total_response_time += elapsed
+            logger.logger.info(f"Request completed in {elapsed:.2f}s")
             
             return jsonify({
                 "response": result['response'],
-                "agent_used": "code",
+                "agent_used": "seamless",
                 "model": "Qwen2.5-Coder-3B-Instruct"
             })
         
@@ -119,11 +159,30 @@ def unified_message():
                 # Generate code with explanation
                 result = code_agent.generate_code(message, detected_language)
                 
+                # Add to history
+                session['message_history'].append({
+                    "role": "user",
+                    "content": message,
+                    "timestamp": time.time()
+                })
+                session['message_history'].append({
+                    "role": "assistant",
+                    "content": result['response'],
+                    "agent": "code",
+                    "timestamp": time.time()
+                })
+                
                 logger.log_response(result['response'], "code", session_id)
+                
+                # Track performance
+                elapsed = time.time() - start_time
+                request_count += 1
+                total_response_time += elapsed
+                logger.logger.info(f"Request completed in {elapsed:.2f}s")
                 
                 return jsonify({
                     "response": result['response'],
-                    "agent_used": "seamless",  # Don't show mode to user
+                    "agent_used": "seamless",
                     "model": "Qwen2.5-Coder-3B-Instruct"
                 })
             else:
@@ -132,6 +191,11 @@ def unified_message():
                 if result.get('needs_language'):
                     session['waiting_for_language'] = True
                     session['pending_task'] = message
+                
+                # Track performance
+                elapsed = time.time() - start_time
+                request_count += 1
+                total_response_time += elapsed
                 
                 return jsonify({
                     "response": result['response'],
@@ -144,11 +208,30 @@ def unified_message():
             chat_agent = agents['chat']
             result = chat_agent.chat(message)
             
+            # Add to history
+            session['message_history'].append({
+                "role": "user",
+                "content": message,
+                "timestamp": time.time()
+            })
+            session['message_history'].append({
+                "role": "assistant",
+                "content": result['response'],
+                "agent": "chat",
+                "timestamp": time.time()
+            })
+            
             logger.log_response(result['response'], "chat", session_id)
+            
+            # Track performance
+            elapsed = time.time() - start_time
+            request_count += 1
+            total_response_time += elapsed
+            logger.logger.info(f"Request completed in {elapsed:.2f}s")
             
             return jsonify({
                 "response": result['response'],
-                "agent_used": "seamless",  # Don't show mode to user
+                "agent_used": "seamless",
                 "model": "Qwen2.5-3B-Instruct"
             })
     
@@ -161,6 +244,13 @@ def clear_history():
     """Clear conversation history"""
     data = request.json
     session_id = data.get('session_id', 'default')
+    save_before_clear = data.get('save', False)
+    
+    # Optionally save before clearing
+    if save_before_clear and session_id in sessions:
+        history = sessions[session_id].get('message_history', [])
+        if history:
+            memory.save_conversation(session_id, history)
     
     # Clear all agents
     for agent in agents.values():
@@ -175,6 +265,48 @@ def clear_history():
     
     return jsonify({"status": "success", "message": "History cleared"})
 
+@app.route('/api/save', methods=['POST'])
+def save_conversation():
+    """Save current conversation"""
+    data = request.json
+    session_id = data.get('session_id', 'default')
+    
+    if session_id in sessions:
+        history = sessions[session_id].get('message_history', [])
+        if history:
+            success = memory.save_conversation(session_id, history)
+            if success:
+                return jsonify({
+                    "status": "success",
+                    "message": "Conversation saved",
+                    "session_id": session_id
+                })
+    
+    return jsonify({"error": "No conversation to save"}), 400
+
+@app.route('/api/conversations', methods=['GET'])
+def list_conversations():
+    """List all saved conversations"""
+    conversations = memory.list_conversations()
+    return jsonify({
+        "conversations": conversations,
+        "count": len(conversations)
+    })
+
+@app.route('/api/stats', methods=['GET'])
+def get_stats():
+    """Get performance statistics"""
+    avg_response_time = (total_response_time / request_count) if request_count > 0 else 0
+    
+    return jsonify({
+        "total_requests": request_count,
+        "avg_response_time_seconds": round(avg_response_time, 3),
+        "avg_response_time_ms": round(avg_response_time * 1000, 2),
+        "active_sessions": len(sessions),
+        "models_loaded": list(models.keys())
+    })
+
 if __name__ == "__main__":
     port = int(os.getenv("PORT", "5001"))
-    app.run(host="0.0.0.0", port=port, debug=False)
+    debug = os.getenv("DEBUG", "false").lower() == "true"
+    app.run(host="0.0.0.0", port=port, debug=debug)

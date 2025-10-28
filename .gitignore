@@ -50,6 +50,10 @@ Thumbs.db
 *.temp
 .cache/
 
+# Data directory (conversation history)
+backend/data/
+data/
+
 # Logs directory
 backend/logs/
 logs/

@@ -1,10 +1,25 @@
+# Core Framework
 flask
 flask-cors
+
+# AI/ML
 transformers
 accelerate
 bitsandbytes
 sentencepiece
 protobuf
-python-dotenv
+
+# Hugging Face
 huggingface-hub
+
+# Utilities
+python-dotenv
 pydantic
+
+#Optional
+requests
+beautifulsoup4
+docker==7.0.0
+
+# For test script
+colorama
