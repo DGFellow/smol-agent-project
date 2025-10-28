@@ -8,7 +8,6 @@ const clearBtn = document.getElementById('clear-btn');
 const chatMessages = document.getElementById('chat-messages');
 const statusText = document.getElementById('status-text');
 const statusDot = document.getElementById('status-indicator');
-const currentModelName = document.getElementById('current-model');
 
 // Welcome message
 const TIP_HTML = `
@@ -23,7 +22,7 @@ const TIP_HTML = `
   </div>
 `;
 
-// Status management
+// Status management - simpler now
 function setStatus(text, type = 'ready') {
   statusText.textContent = text;
   statusDot.className = 'status-dot';
@@ -32,13 +31,6 @@ function setStatus(text, type = 'ready') {
     statusDot.classList.add('loading');
   } else if (type === 'error') {
     statusDot.classList.add('error');
-  }
-}
-
-// Update model indicator only
-function updateModelIndicator(model) {
-  if (model) {
-    currentModelName.textContent = model;
   }
 }
 
@@ -99,16 +91,51 @@ function replaceAssistantMessage(node, text) {
   chatMessages.scrollTop = chatMessages.scrollHeight;
 }
 
-// Format code blocks
+// Format code blocks with better styling
 function formatCodeBlocks(text) {
-  return text
-    .replace(/```(\w+)?\n([\s\S]*?)```/g, (match, lang, code) => {
-      const language = lang || 'code';
-      return `<pre><code class="language-${language}">${escapeHtml(code.trim())}</code></pre>`;
-    })
-    .replace(/`([^`]+)`/g, '<code>$1</code>')
-    .replace(/\n/g, '<br>');
+  // Handle code blocks with language specification
+  text = text.replace(/```(\w+)\n([\s\S]*?)```/g, (match, lang, code) => {
+    const language = lang || 'code';
+    return `<div class="code-block">
+      <div class="code-header">
+        <span class="code-lang">${language}</span>
+        <button class="copy-btn" onclick="copyCode(this)" title="Copy code">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+            <rect x="9" y="9" width="13" height="13" rx="2" stroke="currentColor" stroke-width="2"/>
+            <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" stroke="currentColor" stroke-width="2"/>
+          </svg>
+        </button>
+      </div>
+      <pre><code class="language-${language}">${escapeHtml(code.trim())}</code></pre>
+    </div>`;
+  });
+  
+  // Handle inline code
+  text = text.replace(/`([^`]+)`/g, '<code class="inline-code">$1</code>');
+  
+  // Convert newlines to breaks
+  text = text.replace(/\n/g, '<br>');
+  
+  return text;
 }
+
+// Add copy code function
+window.copyCode = function(button) {
+  const codeBlock = button.closest('.code-block');
+  const code = codeBlock.querySelector('code').textContent;
+  
+  navigator.clipboard.writeText(code).then(() => {
+    button.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+      <path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+    </svg>`;
+    setTimeout(() => {
+      button.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+        <rect x="9" y="9" width="13" height="13" rx="2" stroke="currentColor" stroke-width="2"/>
+        <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" stroke="currentColor" stroke-width="2"/>
+      </svg>`;
+    }, 2000);
+  });
+};
 
 // Escape HTML
 function escapeHtml(text) {
@@ -117,7 +144,7 @@ function escapeHtml(text) {
   return div.innerHTML;
 }
 
-// Send message
+// Simplified send message (remove updateModelIndicator calls)
 async function sendMessage() {
   const message = messageInput.value.trim();
   if (!message) return;
@@ -125,7 +152,7 @@ async function sendMessage() {
   addMessage(message, 'user');
   messageInput.value = '';
   sendBtn.disabled = true;
-  setStatus('Processing...', 'loading');
+  setStatus('Thinking...', 'loading');  // Changed from 'Processing...'
 
   const thinkingNode = addThinkingMessage();
 
@@ -143,10 +170,9 @@ async function sendMessage() {
 
     if (response.ok) {
       replaceAssistantMessage(thinkingNode, data.response);
-      updateModelIndicator(data.model);
-
+      
       if (data.needs_language) {
-        setStatus('Specify language...', 'ready');
+        setStatus('Specify language', 'ready');
       } else {
         setStatus('Ready');
       }
@@ -164,7 +190,7 @@ async function sendMessage() {
   }
 }
 
-// Clear conversation
+// Simplified clear conversation
 async function clearConversation() {
   if (!confirm('Clear entire conversation?')) return;
 
@@ -176,14 +202,13 @@ async function clearConversation() {
     });
 
     chatMessages.innerHTML = '';
-    currentModelName.textContent = '';
     setStatus('Ready');
 
     setTimeout(() => {
       addMessage(TIP_HTML, 'assistant', { html: true });
     }, 300);
   } catch (error) {
-    setStatus('Error clearing', 'error');
+    setStatus('Error', 'error');
   }
 }
 

@@ -47,23 +47,22 @@ Guidelines:
 
 Keep responses natural and friendly."""
 
-    # Code agent - generates code with context
     CODE_AGENT_SYSTEM = """You are an expert programming assistant.
 
-When generating code, structure your response as:
+When generating code, provide:
+1. A brief natural explanation (1-2 sentences)
+2. Clean, working code with comments
+3. A simple usage example if helpful
 
-**Brief explanation** (1-2 sentences about what the code does)
-```language
-[clean, working code here]
-```
-
-**Usage:** (if helpful, 1-2 lines showing how to use it)
+Format your response naturally without special formatting markers.
+Just write the explanation, then the code block, then usage notes.
 
 Guidelines:
 - Write production-ready code with error handling
-- Use clear variable names and comments for complex logic
+- Use clear variable names
+- Add comments for complex logic
 - Follow language best practices
-- Keep explanations brief and natural"""
+- Keep explanations conversational and brief"""
 
     # Hybrid agent - for requests that need both explanation and code
     HYBRID_AGENT_SYSTEM = """You are an AI assistant that explains concepts and provides code examples.
@@ -87,11 +86,10 @@ Keep it concise and natural."""
     @staticmethod
     def format_code_request(task: str, language: str) -> str:
         """Format a code generation request"""
-        return f"""Language: {language}
+        return f"""Create {language} code for this task: {task}
 
-Task: {task}
-
-Provide a brief explanation followed by clean code."""
+Provide a brief explanation, the code, and a usage example if helpful.
+Write naturally without bold markers or special formatting."""
 
     @staticmethod
     def ask_for_language(task: str) -> str:

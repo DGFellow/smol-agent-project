@@ -1,5 +1,6 @@
 from .base_agent import BaseAgent
 from ..prompts import PromptTemplates
+import re
 
 class ChatAgent(BaseAgent):
     """General conversation agent"""
@@ -9,11 +10,21 @@ class ChatAgent(BaseAgent):
         self.system_prompt = PromptTemplates.CHAT_AGENT_SYSTEM
     
     def chat(self, message: str) -> dict:
-        """
-        Process a general chat message
-        """
+        """Process a general chat message"""
         response = self.generate_response(message, self.system_prompt)
+        
+        # Clean up response
+        response = self._clean_response(response)
+        
         return {
             "response": response,
             "agent_type": "chat"
         }
+    
+    def _clean_response(self, response: str) -> str:
+        """Clean up formatting issues"""
+        # Remove excessive markdown formatting
+        response = re.sub(r'^\*\*([^*]+)\*\*:', r'\1:', flags=re.MULTILINE)
+        response = re.sub(r'###\s+', '', response)  # Remove header markers
+        
+        return response.strip()
