@@ -7,6 +7,8 @@ import os
 from src.models.model_loader import ModelLoader
 from src.agents.base_agent import BaseAgent
 from src.agents.code_agent import CodeAgent
+from src.agents.chat_agent import ChatAgent
+from src.agents.router_agent import RouterAgent, LanguageDetectorAgent
 
 load_dotenv()
 
@@ -18,25 +20,33 @@ CORS(app, resources={r"/api/*": {"origins": ["http://localhost:3000"]}})
 models = {}
 agents = {}
 
+# Session storage for tracking conversation state
+sessions = {}
+
 def initialize_models():
     """Load models and construct agents. Idempotent."""
+    print("Initializing models...")
     global models, agents
     if models and agents:
         return
 
     loader = ModelLoader()
-
-    # Load models
-    instruct_model, instruct_tok = loader.load_qwen_instruct()
-    coder_model, coder_tok = loader.load_qwen_coder()
-
-    # Register models if you want visibility in /health
-    models["instruct"] = (instruct_model, instruct_tok)
-    models["coder"] = (coder_model, coder_tok)
-
-    # Build agents
-    agents["chat"] = BaseAgent(instruct_model, instruct_tok)   # :contentReference[oaicite:3]{index=3}
-    agents["code"] = CodeAgent(coder_model, coder_tok)          # :contentReference[oaicite:4]{index=4}
+    
+    # Load Qwen Instruct
+    instruct_model, instruct_tokenizer = loader.load_qwen_instruct()
+    models['instruct'] = (instruct_model, instruct_tokenizer)
+    
+    # Create all agents with instruct model
+    agents['router'] = RouterAgent(instruct_model, instruct_tokenizer)
+    agents['language_detector'] = LanguageDetectorAgent(instruct_model, instruct_tokenizer)
+    agents['chat'] = ChatAgent(instruct_model, instruct_tokenizer)
+    
+    # Load Qwen Coder for code agent
+    coder_model, coder_tokenizer = loader.load_qwen_coder()
+    models['coder'] = (coder_model, coder_tokenizer)
+    agents['code'] = CodeAgent(coder_model, coder_tokenizer)
+    
+    print("Models initialized successfully!")
 
 # --- Eager load on import so it works with any runner (python/flask/gunicorn) ---
 try:
@@ -44,69 +54,101 @@ try:
 except Exception as e:
     app.logger.exception("Model initialization failed at import: %s", e)
 
-@app.get("/api/health")
-def health():
-    ok = bool(agents) and bool(models)
-    return jsonify({
-        "status": "healthy" if ok else "degraded",
-        "models_loaded": list(models.keys()),
-        "agents_ready": list(agents.keys()),
-    }), (200 if ok else 503)
-
-@app.post("/api/chat")
-def chat():
-    data = request.get_json(silent=True) or {}
-    prompt = (data.get("prompt") or "").strip()
-    if not prompt:
-        return jsonify({"error": "No prompt provided"}), 400
-
-    agent = agents.get("chat")
-    if agent is None:
-        return jsonify({"error": "Models not initialized"}), 503
-
+@app.route('/api/message', methods=['POST'])
+def unified_message():
+    """
+    Unified message endpoint that routes to appropriate agent
+    """
+    data = request.json
+    message = data.get('message', '').strip()
+    session_id = data.get('session_id', 'default')
+    
+    if not message:
+        return jsonify({"error": "No message provided"}), 400
+    
     try:
-        reply = agent.generate_response(prompt)  # uses tokenizer.apply_chat_template + generate  # :contentReference[oaicite:5]{index=5}
-        return jsonify({"response": reply, "model": "Qwen2.5-3B-Instruct"}), 200
+        # Initialize session if needed
+        if session_id not in sessions:
+            sessions[session_id] = {
+                'current_agent': None,
+                'waiting_for_language': False
+            }
+        
+        session = sessions[session_id]
+        
+        # Check if we're waiting for language specification
+        if session.get('waiting_for_language'):
+            # User is responding with a language
+            code_agent = agents['code']
+            result = code_agent.handle_language_response(message)
+            session['waiting_for_language'] = False
+            session['current_agent'] = 'code'
+            
+            return jsonify({
+                "response": result['response'],
+                "agent_used": "code",
+                "model": "Qwen2.5-Coder-3B-Instruct"
+            })
+        
+        # Route the message to appropriate agent
+        router = agents['router']
+        agent_type = router.route_request(message)
+        
+        if agent_type == 'code':
+            # Detect language from message
+            language_detector = agents['language_detector']
+            detected_language = language_detector.detect_language(message)
+            
+            code_agent = agents['code']
+            
+            if detected_language != 'UNCLEAR':
+                # Language detected, generate code
+                result = code_agent.generate_code(message, detected_language)
+            else:
+                # Need to ask for language
+                result = code_agent.generate_code(message, None)
+                if result.get('needs_language'):
+                    session['waiting_for_language'] = True
+            
+            session['current_agent'] = 'code'
+            
+            return jsonify({
+                "response": result['response'],
+                "agent_used": "code",
+                "model": "Qwen2.5-Coder-3B-Instruct",
+                "needs_language": result.get('needs_language', False)
+            })
+        
+        else:  # general chat
+            chat_agent = agents['chat']
+            result = chat_agent.chat(message)
+            session['current_agent'] = 'chat'
+            
+            return jsonify({
+                "response": result['response'],
+                "agent_used": "chat",
+                "model": "Qwen2.5-3B-Instruct"
+            })
+    
     except Exception as e:
-        app.logger.exception("chat failed: %s", e)
         return jsonify({"error": str(e)}), 500
 
-@app.post("/api/code")
-def code():
-    data = request.get_json(silent=True) or {}
-    task = (data.get("task") or "").strip()
-    language = (data.get("language") or "python").strip() or "python"
-    if not task:
-        return jsonify({"error": "No task provided"}), 400
-
-    agent = agents.get("code")
-    if agent is None:
-        return jsonify({"error": "Models not initialized"}), 503
-
-    try:
-        code_txt = agent.generate_code(task, language=language)  # :contentReference[oaicite:6]{index=6}
-        return jsonify({"code": code_txt, "language": language}), 200
-    except Exception as e:
-        app.logger.exception("code failed: %s", e)
-        return jsonify({"error": str(e)}), 500
-
-@app.post("/api/clear")
+@app.route('/api/clear', methods=['POST'])
 def clear_history():
-    data = request.get_json(silent=True) or {}
-    agent_type = (data.get("agent_type") or "chat").strip() or "chat"
-
-    agent = agents.get(agent_type)
-    if agent is None:
-        return jsonify({"error": "Invalid agent type"}), 400
-
-    try:
-        clear_fn = getattr(agent, "clear_history", None)
-        if callable(clear_fn):
-            clear_fn()
-        return jsonify({"status": "success", "message": "History cleared"}), 200
-    except Exception as e:
-        app.logger.exception("clear failed: %s", e)
-        return jsonify({"error": str(e)}), 500
+    """Clear conversation history"""
+    data = request.json
+    session_id = data.get('session_id', 'default')
+    
+    # Clear all agents
+    for agent in agents.values():
+        if hasattr(agent, 'clear_history'):
+            agent.clear_history()
+    
+    # Clear session
+    if session_id in sessions:
+        del sessions[session_id]
+    
+    return jsonify({"status": "success", "message": "All history cleared"})
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", "5001"))
