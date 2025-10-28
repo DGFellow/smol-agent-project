@@ -60,7 +60,8 @@ npm run dev
 Frontend will be available at: `http://localhost:3000`
 
 ## 🏗️ Project Structure
-smolagent-framework/
+```
+smol-agent-project/
 ├── backend/
 │   ├── src/
 │   │   ├── models/
@@ -90,3 +91,4 @@ smolagent-framework/
 │   ├── package.json
 │   └── .env
 └── README.md
+```
