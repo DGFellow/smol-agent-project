@@ -300,12 +300,26 @@ footer {
     padding: 1.5rem;
     border-radius: 0 0 12px 12px;
     border-top: 2px solid var(--border);
+    /* NEW: make composer a single row */
+    display: flex;
+    align-items: flex-end;   /* buttons bottom-align with textarea */
+    gap: 1rem;
 }
 
 .button-group {
     display: flex;
-    gap: 1rem;
-    margin-top: 1rem;
+    gap: 0.75rem;
+    margin-top: 0;          /* keep buttons on same row */
+    flex: 0 0 auto;         /* don't grow, stay compact */
+    align-self: flex-end;   /* align to bottom of textarea */
+}
+
+/* Grow textarea to fill remaining space and remove width clamps */
+.input-area textarea#message-input {
+    flex: 1 1 auto;
+    width: 100%;
+    min-width: 0;           /* override global min-width to prevent overflow */
+    /* keep your existing padding/border/resize from global textarea rules */
 }
 
 .btn-icon {
@@ -379,18 +393,45 @@ footer {
     animation: slideIn 0.3s ease-out;
 }
 
+/* ---------- FLEX HEIGHT OVERRIDES ---------- */
+/* Make the chat view fill the viewport height on wider screens */
+@media (min-width: 768px) {
+    /* Let the chat UI be a column that stretches vertically */
+    .chat-interface {
+        display: flex;
+        flex-direction: column;
+        min-height: 75dvh; /* dynamic viewport units for mobile chrome, etc. */
+    }
+
+    /* Ensure the main card can host a flex column layout cleanly */
+    main {
+        display: flex;
+        flex-direction: column;
+    }
+
+    /* Let the messages panel expand to fill remaining space */
+    .messages {
+        flex: 1 1 auto;
+        min-height: 0;     /* critical to allow flex children to shrink */
+        max-height: none;  /* remove fixed cap so it truly stretches */
+        overflow-y: auto;
+    }
+}
+
 /* Responsive */
 @media (max-width: 768px) {
     .agent-indicator {
         flex-direction: column;
         gap: 0.5rem;
     }
-    
-    .button-group {
-        flex-direction: column;
+
+    /* Keep buttons inline even on mobile (no stacking) */
+    .input-area .button-group {
+        flex-direction: row;
     }
-    
+
+    /* Keep natural width so inline buttons don’t overflow */
     .btn {
-        width: 100%;
+        width: auto;
     }
 }
