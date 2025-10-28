@@ -60,3 +60,33 @@ npm run dev
 Frontend will be available at: `http://localhost:3000`
 
 ## 🏗️ Project Structure
+smolagent-framework/
+├── backend/
+│   ├── src/
+│   │   ├── models/
+│   │   │   ├── init.py
+│   │   │   └── model_loader.py
+│   │   ├── agents/
+│   │   │   ├── init.py
+│   │   │   ├── base_agent.py
+│   │   │   └── code_agent.py
+│   │   ├── tools/
+│   │   └── utils/
+│   ├── app.py
+│   ├── config.py
+│   ├── requirements.txt
+│   └── .env
+├── frontend/
+│   ├── views/
+│   │   ├── index.ejs
+│   │   ├── header.ejs
+│   │   └── footer.ejs
+│   ├── public/
+│   │   ├── css/
+│   │   │   └── style.css
+│   │   └── js/
+│   │       └── main.js
+│   ├── server.js
+│   ├── package.json
+│   └── .env
+└── README.md
