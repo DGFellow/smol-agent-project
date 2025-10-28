@@ -209,16 +209,9 @@ select {
     cursor: not-allowed;
 }
 
-.status {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    margin-top: 1rem;
-    padding: 1rem;
-    background: var(--light);
-    border-radius: 8px;
-}
+/* ===== Removed old .status block UI (bottom bar) — not used anymore ===== */
 
+/* Status dot styles (kept; used in header chip and setStatus()) */
 .status-dot {
     width: 10px;
     height: 10px;
@@ -226,19 +219,12 @@ select {
     background: var(--success);
     animation: pulse 2s infinite;
 }
-
 @keyframes pulse {
     0%, 100% { opacity: 1; }
     50% { opacity: 0.5; }
 }
-
-.status-dot.loading {
-    background: #f59e0b;
-}
-
-.status-dot.error {
-    background: var(--danger);
-}
+.status-dot.loading { background: #f59e0b; }
+.status-dot.error   { background: var(--danger); }
 
 pre {
     background: #1f2937;
@@ -259,19 +245,7 @@ footer {
     margin-top: 2rem;
 }
 
-.loading {
-    display: inline-block;
-    width: 20px;
-    height: 20px;
-    border: 3px solid rgba(255, 255, 255, 0.3);
-    border-radius: 50%;
-    border-top-color: white;
-    animation: spin 1s ease-in-out infinite;
-}
-
-@keyframes spin {
-    to { transform: rotate(360deg); }
-}
+/* ===== Removed generic .loading spinner — not referenced ===== */
 
 /* Unified Chat Interface */
 .chat-interface {
@@ -303,6 +277,22 @@ footer {
 .model-name {
     color: rgba(255, 255, 255, 0.9);
     font-size: 0.75rem;
+}
+
+/* Header status chip (dot + text in the top bar) */
+.status-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.35rem 0.8rem;
+    border-radius: 9999px;
+    background: rgba(255, 255, 255, 0.22);
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    color: #fff;
+    font-weight: 600;
+}
+.status-chip .status-dot {
+    width: 10px; height: 10px; border-radius: 9999px; display: inline-block;
 }
 
 .messages {
@@ -339,16 +329,13 @@ footer {
     box-shadow: 0 2px 10px rgba(17, 24, 39, 0.08);
     transition: box-shadow 0.15s ease, border-color 0.15s ease;
 }
-
 .composer:focus-within {
     border-color: var(--primary);
     box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12), 0 2px 10px rgba(17, 24, 39, 0.08);
 }
 
 /* Left accessory icon (e.g., attach) */
-.icon-btn.attach-btn {
-    color: #6b7280;
-}
+.icon-btn.attach-btn { color: #6b7280; }
 
 /* Textarea inside the pill */
 .composer #message-input {
@@ -362,8 +349,8 @@ footer {
     padding: 0.75rem 0.25rem;
     background: transparent;
     font-size: 1rem;
-    line-height: 1.4;             /* line height used for the cap calculation */
-    max-height: calc(1.4em * 5 + 1.5rem); /* 5 lines + vertical padding (0.75rem * 2) */
+    line-height: 1.4;             /* used for cap calculation */
+    max-height: calc(1.4em * 5 + 1.5rem); /* 5 lines + vertical padding */
 }
 
 /* Inline actions to the right inside the pill */
@@ -408,80 +395,44 @@ footer {
 .send-btn:active { transform: translateY(1px); }
 .send-btn .btn-label { font-weight: 600; }
 
-/* Keep legacy helpers */
-.btn-icon {
-    margin-right: 0.5rem;
-}
-
-.help-text {
-    margin-top: 2rem;
-    padding: 1.5rem;
-    background: rgba(99, 102, 241, 0.05);
-    border-left: 4px solid var(--primary);
-    border-radius: 8px;
-}
-
-.help-text p {
-    margin-bottom: 0.75rem;
-    color: #4b5563;
-}
-
-.help-text ul {
-    list-style: none;
-    padding-left: 0;
-}
-
-.help-text li {
-    padding: 0.5rem 0;
-    color: #6b7280;
-    font-style: italic;
-}
-
-.help-text li:before {
-    content: "→ ";
-    color: var(--primary);
-    font-weight: bold;
-    margin-right: 0.5rem;
-}
-
 /* Agent type indicators in messages */
-.message.code {
-    border-left: 4px solid #10b981;
-}
-
-.message.chat {
-    border-left: 4px solid #6366f1;
-}
+.message.code { border-left: 4px solid #10b981; }
+.message.chat { border-left: 4px solid #6366f1; }
 
 /* Improved code blocks */
 .message pre {
     margin-top: 1rem;
     position: relative;
 }
+.message code { display: block; line-height: 1.6; }
 
-.message code {
-    display: block;
-    line-height: 1.6;
+/* In-thread assistant thinking bubble */
+.message.assistant.thinking {
+    border: 1px dashed var(--border);
+    background: #ffffff;
 }
-
-/* Animations */
-@keyframes slideIn {
-    from {
-        opacity: 0;
-        transform: translateY(20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+.thinking-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.25rem 0;
+    color: #6b7280;
+    font-weight: 600;
 }
-
-.message {
-    animation: slideIn 0.3s ease-out;
+.dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: #9ca3af;
+    animation: dotPulse 1.2s infinite ease-in-out;
+}
+.dot:nth-child(2) { animation-delay: 0.15s; }
+.dot:nth-child(3) { animation-delay: 0.30s; }
+@keyframes dotPulse {
+    0%, 60%, 100% { transform: translateY(0); opacity: 0.6; }
+    30% { transform: translateY(-3px); opacity: 1; }
 }
 
 /* ---------- FLEX HEIGHT OVERRIDES ---------- */
-/* Make the chat view fill the viewport height on wider screens */
 @media (min-width: 768px) {
     .chat-interface {
         display: flex;

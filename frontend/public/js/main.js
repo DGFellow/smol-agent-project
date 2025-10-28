@@ -1,4 +1,4 @@
-// Generate simple session ID
+// Session ID
 const SESSION_ID = 'session_' + Date.now();
 
 // DOM Elements
@@ -8,16 +8,15 @@ const clearBtn = document.getElementById('clear-btn');
 const chatMessages = document.getElementById('chat-messages');
 const statusText = document.getElementById('status-text');
 const statusDot = document.getElementById('status-indicator');
-const currentAgentBadge = document.getElementById('current-agent');
 const currentModelName = document.getElementById('current-model');
 
-// Tip HTML shown inside the first assistant message
+// Welcome message
 const TIP_HTML = `
-  <p><strong>Hi!</strong> I'm your AI assistant. I can help with general questions or write code for you. Just ask naturally, and I'll figure out what you need!</p>
+  <p><strong>Hi!</strong> I'm your AI assistant. I can help with general questions or write code for you. Just ask naturally!</p>
   <div class="tip-inline">
-    <p>💡 <strong>Tip:</strong> Just type naturally — I’ll detect if you need code or conversation.</p>
+    <p>💡 <strong>Tip:</strong> I'll automatically understand what you need:</p>
     <ul class="tip-list">
-      <li>→ <em>"Write a Python function to calculate fibonacci numbers"</em></li>
+      <li>→ <em>"Write a Python function to calculate fibonacci"</em></li>
       <li>→ <em>"Explain how neural networks work"</em></li>
       <li>→ <em>"Create a REST API endpoint in Express"</em></li>
     </ul>
@@ -36,42 +35,29 @@ function setStatus(text, type = 'ready') {
   }
 }
 
-// Update agent indicator
-function updateAgentIndicator(agentType, model) {
-  const agentNames = {
-    chat: '💬 Chat Mode',
-    code: '💻 Code Mode',
-  };
-
-  currentAgentBadge.textContent = agentNames[agentType] || 'Ready';
-  currentModelName.textContent = model || '';
+// Update model indicator only
+function updateModelIndicator(model) {
+  if (model) {
+    currentModelName.textContent = model;
+  }
 }
 
-// Add message to chat
-// options: { html: boolean } — when true, render `text` as HTML
-function addMessage(text, sender, agentType = 'chat', options = {}) {
+// Add message
+function addMessage(text, sender, options = {}) {
   const { html = false } = options;
 
   const messageDiv = document.createElement('div');
-  messageDiv.className = `message ${sender} ${agentType}`;
+  messageDiv.className = `message ${sender}`;
 
   const label = document.createElement('div');
   label.className = 'message-label';
-
-  if (sender === 'user') {
-    label.textContent = 'You';
-  } else {
-    const agentEmoji = agentType === 'code' ? '💻' : '💬';
-    label.textContent = `${agentEmoji} Assistant`;
-  }
+  label.textContent = sender === 'user' ? 'You' : '🤖 Assistant';
 
   const content = document.createElement('div');
 
   if (html) {
-    // render trusted HTML (we only use this for the static tip/welcome block)
     content.innerHTML = text;
   } else if (typeof text === 'string' && text.includes('```')) {
-    // render markdown-style code blocks
     content.innerHTML = formatCodeBlocks(text);
   } else {
     content.textContent = text;
@@ -81,11 +67,40 @@ function addMessage(text, sender, agentType = 'chat', options = {}) {
   messageDiv.appendChild(content);
   chatMessages.appendChild(messageDiv);
   chatMessages.scrollTop = chatMessages.scrollHeight;
+
+  return messageDiv;
 }
 
-// Format code blocks in response
+// Thinking indicator
+function addThinkingMessage() {
+  const thinkingHTML = `
+    <div class="thinking-indicator">
+      <span>Thinking</span>
+      <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+    </div>
+  `;
+  const node = addMessage(thinkingHTML, 'assistant', { html: true });
+  node.classList.add('thinking');
+  return node;
+}
+
+// Replace thinking with response
+function replaceAssistantMessage(node, text) {
+  if (!node) return;
+  node.classList.remove('thinking');
+  
+  const content = node.children[1];
+  if (typeof text === 'string' && text.includes('```')) {
+    content.innerHTML = formatCodeBlocks(text);
+  } else {
+    content.textContent = text;
+  }
+  
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+// Format code blocks
 function formatCodeBlocks(text) {
-  // Simple code block formatting
   return text
     .replace(/```(\w+)?\n([\s\S]*?)```/g, (match, lang, code) => {
       const language = lang || 'code';
@@ -107,11 +122,12 @@ async function sendMessage() {
   const message = messageInput.value.trim();
   if (!message) return;
 
-  // Add user message
   addMessage(message, 'user');
   messageInput.value = '';
   sendBtn.disabled = true;
   setStatus('Processing...', 'loading');
+
+  const thinkingNode = addThinkingMessage();
 
   try {
     const response = await fetch('/api/message', {
@@ -126,32 +142,31 @@ async function sendMessage() {
     const data = await response.json();
 
     if (response.ok) {
-      addMessage(data.response, 'assistant', data.agent_used);
-      updateAgentIndicator(data.agent_used, data.model);
+      replaceAssistantMessage(thinkingNode, data.response);
+      updateModelIndicator(data.model);
 
       if (data.needs_language) {
-        setStatus('Waiting for language specification...', 'ready');
+        setStatus('Specify language...', 'ready');
       } else {
         setStatus('Ready');
       }
     } else {
-      addMessage(`Error: ${data.error}`, 'assistant');
+      replaceAssistantMessage(thinkingNode, `Error: ${data.error}`);
       setStatus('Error', 'error');
     }
   } catch (error) {
-    addMessage(`Error: ${error.message}`, 'assistant');
+    replaceAssistantMessage(thinkingNode, `Error: ${error.message}`);
     setStatus('Error', 'error');
   } finally {
     sendBtn.disabled = false;
     messageInput.focus();
-    // trigger autosize adjustment after DOM updates
     autoSizeToCap(messageInput);
   }
 }
 
 // Clear conversation
 async function clearConversation() {
-  if (!confirm('Clear entire conversation history?')) return;
+  if (!confirm('Clear entire conversation?')) return;
 
   try {
     await fetch('/api/clear', {
@@ -161,15 +176,14 @@ async function clearConversation() {
     });
 
     chatMessages.innerHTML = '';
-    updateAgentIndicator('', '');
-    setStatus('History cleared');
+    currentModelName.textContent = '';
+    setStatus('Ready');
 
-    // Add welcome + tips
     setTimeout(() => {
-      addMessage(TIP_HTML, 'assistant', 'chat', { html: true });
+      addMessage(TIP_HTML, 'assistant', { html: true });
     }, 300);
   } catch (error) {
-    setStatus('Error clearing history', 'error');
+    setStatus('Error clearing', 'error');
   }
 }
 
@@ -184,11 +198,11 @@ messageInput.addEventListener('keydown', (e) => {
   }
 });
 
-// Auto-resize textarea but respect CSS max-height (5 lines)
+// Auto-resize textarea
 function autoSizeToCap(el) {
   el.style.height = 'auto';
   const computed = getComputedStyle(el);
-  const maxH = parseFloat(computed.maxHeight); // px
+  const maxH = parseFloat(computed.maxHeight);
   const newHeight = Math.min(el.scrollHeight, isNaN(maxH) ? el.scrollHeight : maxH);
   el.style.height = newHeight + 'px';
 }
@@ -199,4 +213,4 @@ messageInput.addEventListener('input', function () {
 
 // Initialize
 setStatus('Ready');
-addMessage(TIP_HTML, 'assistant', 'chat', { html: true });
+addMessage(TIP_HTML, 'assistant', { html: true });
