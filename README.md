@@ -70,9 +70,12 @@ smol-agent-project/
 │   │   ├── agents/
 │   │   │   ├── init.py
 │   │   │   ├── base_agent.py
-│   │   │   └── code_agent.py
+│   │   │   ├── chat_agent.py
+│   │   │   ├── code_agent.py
+│   │   │   └──router_agent.py
 │   │   ├── tools/
 │   │   └── utils/
+│   ├── prompts.py
 │   ├── app.py
 │   ├── config.py
 │   ├── requirements.txt
