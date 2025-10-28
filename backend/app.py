@@ -306,6 +306,21 @@ def get_stats():
         "models_loaded": list(models.keys())
     })
 
+@app.route('/api/conversation/<session_id>', methods=['DELETE'])
+def delete_conversation(session_id):
+    """Delete a specific conversation"""
+    try:
+        success = memory.delete_conversation(session_id)
+        if success:
+            return jsonify({
+                "status": "success",
+                "message": "Conversation deleted"
+            })
+        return jsonify({"error": "Conversation not found"}), 404
+    except Exception as e:
+        logger.log_error(str(e), session_id)
+        return jsonify({"error": str(e)}), 500
+
 if __name__ == "__main__":
     port = int(os.getenv("PORT", "5001"))
     debug = os.getenv("DEBUG", "false").lower() == "true"

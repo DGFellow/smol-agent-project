@@ -1,6 +1,50 @@
 <%- include('header') %>
 
 <main class="container">
+    <!-- Sidebar Toggle Button (always visible) -->
+    <button id="sidebar-toggle" class="sidebar-toggle" aria-label="Toggle sidebar">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+            <path d="M3 12h18M3 6h18M3 18h18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+    </button>
+
+    <!-- Sidebar -->
+    <aside id="sidebar" class="sidebar">
+        <div class="sidebar-header">
+            <h2>💬 Conversations</h2>
+            <button id="sidebar-close" class="icon-btn" aria-label="Close sidebar">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                    <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+            </button>
+        </div>
+
+        <div class="sidebar-actions">
+            <button id="new-chat-btn" class="btn btn-primary new-chat-btn">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                    <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+                New Chat
+            </button>
+        </div>
+
+        <div class="sidebar-content">
+            <div id="conversation-list" class="conversation-list">
+                <!-- Conversations will be loaded here -->
+            </div>
+        </div>
+
+        <div class="sidebar-footer">
+            <button id="clear-all-btn" class="btn btn-secondary btn-sm">
+                Clear All History
+            </button>
+        </div>
+    </aside>
+
+    <!-- Sidebar Overlay (for mobile) -->
+    <div id="sidebar-overlay" class="sidebar-overlay"></div>
+
+    <!-- Main Chat Interface -->
     <div class="chat-interface">
         <div class="agent-indicator">
             <!-- Single status indicator on the left -->
