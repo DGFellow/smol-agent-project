@@ -1,44 +1,100 @@
 <!-- Sidebar Overlay (mobile backdrop) -->
 <div id="sidebar-overlay" class="sidebar-overlay"></div>
 
-<!-- Sidebar -->
+<!-- Sidebar (left column in the grid shell) -->
 <aside id="sidebar" class="sidebar">
+  <!-- Rail-only (visible when collapsed) -->
+  <div class="rail-only">
+    <!-- Hamburger / toggle -->
+    <button id="sidebar-toggle" class="rail-btn" title="Toggle sidebar" aria-label="Toggle sidebar">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+    </button>
+
+    <!-- New chat (quick) -->
+    <button id="rail-new-chat" class="rail-btn" title="New chat" aria-label="New chat">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+    </button>
+
+    <!-- Home (example) -->
+    <button id="rail-home" class="rail-btn" title="Home" aria-label="Home">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M3 11l9-7 9 7v9a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2V12H9v8a2 2 0 0 1-2 2H3z"
+              stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+      </svg>
+    </button>
+  </div>
+
+  <!-- Full content (visible only when expanded) -->
+  <div class="rail-hide">
+    <!-- Header -->
     <div class="sidebar-header">
-        <h2>💬 Conversations</h2>
-        <button id="sidebar-close" class="icon-btn-sidebar" aria-label="Close sidebar">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-            </svg>
-        </button>
+      <h2>💬 Conversations</h2>
+      <button id="sidebar-close" class="icon-btn-sidebar" aria-label="Close sidebar">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </button>
     </div>
 
+    <!-- Actions -->
     <div class="sidebar-actions">
-        <button id="new-chat-btn" class="btn btn-primary new-chat-btn">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-            </svg>
-            New Chat
-        </button>
+      <button id="new-chat-btn" class="new-chat-btn" type="button">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+        New chat
+      </button>
     </div>
 
+    <!-- Search -->
     <div class="sidebar-search">
-        <input 
-            type="text" 
-            id="conversation-search" 
-            placeholder="Search conversations..."
-            class="search-input"
-        />
+      <input id="conversation-search" class="search-input" type="text" placeholder="Search conversations…" />
     </div>
 
+    <!-- Conversation list -->
     <div class="sidebar-content">
-        <div id="conversation-list" class="conversation-list">
-            <!-- Conversations loaded dynamically -->
-        </div>
+      <div id="conversation-list" class="conversation-list">
+        <% if (typeof conversations !== 'undefined' && conversations.length) { %>
+          <% conversations.forEach(function(conv) { %>
+            <div class="conversation-item" data-id="<%= conv.id %>">
+              <div class="conversation-item-header">
+                <div class="conversation-title"><%= conv.title || 'Untitled' %></div>
+                <div class="conversation-date"><%= conv.updated_at || '' %></div>
+              </div>
+              <div class="conversation-preview"><%= conv.preview || '' %></div>
+
+              <div class="conversation-actions">
+                <button class="conversation-export" title="Export" aria-label="Export conversation">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path d="M12 5v10M12 5l-4 4M12 5l4 4M4 19h16" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </button>
+                <button class="conversation-delete" title="Delete" aria-label="Delete conversation">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          <% }) %>
+        <% } else { %>
+          <div class="conversation-empty">
+            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M4 5h16v10H7l-3 3V5z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+            </svg>
+            <div>No conversations yet</div>
+          </div>
+        <% } %>
+      </div>
     </div>
 
+    <!-- Footer -->
     <div class="sidebar-footer">
-        <button id="clear-all-btn" class="btn btn-secondary btn-sm">
-            Clear All History
-        </button>
+      <button id="import-btn" class="btn btn-secondary btn-sm" type="button">Import</button>
     </div>
+  </div>
 </aside>

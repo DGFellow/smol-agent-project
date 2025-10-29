@@ -1,7 +1,9 @@
 // Generate simple session ID
 let SESSION_ID = 'session_' + Date.now();
 
-
+/* =========================
+   Markdown render helpers
+   ========================= */
 function renderMarkdown(text) {
     if (typeof marked === 'undefined' || typeof DOMPurify === 'undefined') {
         // Fallback: basic formatting
@@ -40,7 +42,53 @@ function enhanceCodeBlocksIn(root) {
         wrapper.appendChild(pre);
     });
 }
-// DOM Elements
+
+function formatCodeBlocks(text) {
+    text = text.replace(/```(\w+)\n([\s\S]*?)```/g, (match, lang, code) => {
+        const language = lang || 'code';
+        return `<div class="code-block">
+            <div class="code-header">
+                <span class="code-lang">${language}</span>
+                <button class="copy-btn" onclick="copyCode(this)" title="Copy code">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                        <rect x="9" y="9" width="13" height="13" rx="2" stroke="currentColor" stroke-width="2"/>
+                        <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" stroke="currentColor" stroke-width="2"/>
+                    </svg>
+                </button>
+            </div>
+            <pre><code class="language-${language}">${escapeHtml((code||'').trim())}</code></pre>
+        </div>`;
+    });
+    text = text.replace(/`([^`]+)`/g, '<code class="inline-code">$1</code>');
+    text = text.replace(/\n/g, '<br>');
+    return text;
+}
+
+window.copyCode = function(button) {
+    const codeBlock = button.closest('.code-block');
+    const code = codeBlock.querySelector('code').textContent;
+    navigator.clipboard.writeText(code).then(() => {
+        button.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+            <path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>`;
+        setTimeout(() => {
+            button.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                <rect x="9" y="9" width="13" height="13" rx="2" stroke="currentColor" stroke-width="2"/>
+                <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" stroke="currentColor" stroke-width="2"/>
+            </svg>`;
+        }, 2000);
+    });
+};
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+/* =========================
+   DOM Elements
+   ========================= */
 const messageInput = document.getElementById('message-input');
 const sendBtn = document.getElementById('send-btn');
 const clearBtn = document.getElementById('clear-btn');
@@ -48,21 +96,25 @@ const chatMessages = document.getElementById('chat-messages');
 const statusText = document.getElementById('status-text');
 const statusDot = document.getElementById('status-indicator');
 
-// Sidebar Elements
+// Sidebar / layout
 const sidebar = document.getElementById('sidebar');
 const sidebarToggle = document.getElementById('sidebar-toggle');
 const sidebarClose = document.getElementById('sidebar-close');
 const sidebarOverlay = document.getElementById('sidebar-overlay');
-const container = document.querySelector('.container');
+const appShell = document.getElementById('app-shell');      // NEW: grid shell root (<div class="app-shell">)
+const container = document.getElementById('main-wrapper');  // right column content wrapper
+
+// Conversations UI (existing)
 const conversationList = document.getElementById('conversation-list');
 const newChatBtn = document.getElementById('new-chat-btn');
 const clearAllBtn = document.getElementById('clear-all-btn');
 
-// State
+/* =========================
+   State & Welcome
+   ========================= */
 let currentConversationId = SESSION_ID;
 let conversations = [];
 
-// Welcome message
 const TIP_HTML = `
   <p><strong>Hi!</strong> I'm your AI assistant. I can help with general questions or write code for you. Just ask naturally!</p>
   <div class="tip-inline">
@@ -75,26 +127,43 @@ const TIP_HTML = `
   </div>
 `;
 
-// =====================================================
-// SIDEBAR FUNCTIONS
-// =====================================================
-
-function toggleSidebar() {
-    sidebar.classList.toggle('open');
-    sidebarOverlay.classList.toggle('active');
-    
-    // On desktop, push content
-    if (window.innerWidth > 768) {
-        container.classList.toggle('sidebar-open');
+/* =========================
+   Sidebar: desktop rail vs mobile overlay
+   ========================= */
+function openSidebar() {
+    if (window.innerWidth <= 768) {
+        // Mobile: overlay slide-in
+        sidebar.classList.add('open');
+        sidebarOverlay.classList.add('active');
+        container && container.classList.add('sidebar-open');
+        return;
     }
+    // Desktop: widen the left grid column (no overlap)
+    appShell && appShell.classList.add('expanded');
 }
 
 function closeSidebar() {
-    sidebar.classList.remove('open');
-    sidebarOverlay.classList.remove('active');
-    container.classList.remove('sidebar-open');
+    if (window.innerWidth <= 768) {
+        sidebar.classList.remove('open');
+        sidebarOverlay.classList.remove('active');
+        container && container.classList.remove('sidebar-open');
+        return;
+    }
+    appShell && appShell.classList.remove('expanded');
 }
 
+function toggleSidebar() {
+    if (window.innerWidth <= 768) {
+        const isOpen = sidebar.classList.contains('open');
+        return isOpen ? closeSidebar() : openSidebar();
+    }
+    const isExpanded = appShell && appShell.classList.contains('expanded');
+    return isExpanded ? closeSidebar() : openSidebar();
+}
+
+/* =========================
+   Conversations (existing)
+   ========================= */
 async function loadConversations() {
     try {
         const response = await fetch('/api/conversations');
@@ -107,6 +176,7 @@ async function loadConversations() {
 }
 
 function renderConversations() {
+    if (!conversationList) return;
     if (conversations.length === 0) {
         conversationList.innerHTML = `
             <div class="conversation-empty">
@@ -123,7 +193,6 @@ function renderConversations() {
         const date = new Date(conv.created_at);
         const dateStr = formatDate(date);
         const isActive = conv.session_id === currentConversationId;
-        
         return `
             <div class="conversation-item ${isActive ? 'active' : ''}" data-id="${conv.session_id}">
                 <div class="conversation-item-header">
@@ -136,7 +205,7 @@ function renderConversations() {
         `;
     }).join('');
 
-    // Add click handlers
+    // Click handlers
     document.querySelectorAll('.conversation-item').forEach(item => {
         item.addEventListener('click', (e) => {
             if (!e.target.classList.contains('conversation-delete')) {
@@ -164,7 +233,6 @@ function formatDate(date) {
     if (diffMins < 60) return `${diffMins}m ago`;
     if (diffHours < 24) return `${diffHours}h ago`;
     if (diffDays < 7) return `${diffDays}d ago`;
-    
     return date.toLocaleDateString();
 }
 
@@ -172,11 +240,8 @@ async function loadConversation(sessionId) {
     // TODO: Implement loading conversation from backend
     currentConversationId = sessionId;
     SESSION_ID = sessionId;
-    
-    // Clear current messages
+
     chatMessages.innerHTML = '';
-    
-    // Load conversation history would go here
     setStatus('Loaded conversation');
     renderConversations();
     closeSidebar();
@@ -184,12 +249,10 @@ async function loadConversation(sessionId) {
 
 async function deleteConversation(sessionId) {
     if (!confirm('Delete this conversation?')) return;
-
     try {
         // TODO: Add delete endpoint to backend
         conversations = conversations.filter(c => c.session_id !== sessionId);
         renderConversations();
-        
         if (sessionId === currentConversationId) {
             startNewChat();
         }
@@ -208,19 +271,14 @@ function startNewChat() {
     closeSidebar();
 }
 
-// =====================================================
-// CHAT FUNCTIONS
-// =====================================================
-
+/* =========================
+   Chat functions
+   ========================= */
 function setStatus(text, type = 'ready') {
     statusText.textContent = text;
     statusDot.className = 'status-dot';
-
-    if (type === 'loading') {
-        statusDot.classList.add('loading');
-    } else if (type === 'error') {
-        statusDot.classList.add('error');
-    }
+    if (type === 'loading') statusDot.classList.add('loading');
+    else if (type === 'error') statusDot.classList.add('error');
 }
 
 function addMessage(text, sender, options = {}) {
@@ -234,15 +292,13 @@ function addMessage(text, sender, options = {}) {
     label.textContent = sender === 'user' ? 'You' : '🤖 Assistant';
 
     const content = document.createElement('div');
-
-    if (html) { content.innerHTML = text; } else { content.innerHTML = renderMarkdown(text); }
+    content.innerHTML = html ? text : renderMarkdown(text);
 
     messageDiv.appendChild(label);
     messageDiv.appendChild(content);
     chatMessages.appendChild(messageDiv);
     enhanceCodeBlocksIn(content);
     chatMessages.scrollTop = chatMessages.scrollHeight;
-    enhanceCodeBlocksIn(content);
 
     return messageDiv;
 }
@@ -262,58 +318,10 @@ function addThinkingMessage() {
 function replaceAssistantMessage(node, text) {
     if (!node) return;
     node.classList.remove('thinking');
-    
     const content = node.children[1];
     content.innerHTML = renderMarkdown(text);
-    
-    chatMessages.scrollTop = chatMessages.scrollHeight;
     enhanceCodeBlocksIn(content);
-}
-
-function formatCodeBlocks(text) {
-    text = text.replace(/```(\w+)\n([\s\S]*?)```/g, (match, lang, code) => {
-        const language = lang || 'code';
-        return `<div class="code-block">
-            <div class="code-header">
-                <span class="code-lang">${language}</span>
-                <button class="copy-btn" onclick="copyCode(this)" title="Copy code">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                        <rect x="9" y="9" width="13" height="13" rx="2" stroke="currentColor" stroke-width="2"/>
-                        <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" stroke="currentColor" stroke-width="2"/>
-                    </svg>
-                </button>
-            </div>
-            <pre><code class="language-${language}">${escapeHtml(code.trim())}</code></pre>
-        </div>`;
-    });
-    
-    text = text.replace(/`([^`]+)`/g, '<code class="inline-code">$1</code>');
-    text = text.replace(/\n/g, '<br>');
-    
-    return text;
-}
-
-window.copyCode = function(button) {
-    const codeBlock = button.closest('.code-block');
-    const code = codeBlock.querySelector('code').textContent;
-    
-    navigator.clipboard.writeText(code).then(() => {
-        button.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-            <path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-        </svg>`;
-        setTimeout(() => {
-            button.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                <rect x="9" y="9" width="13" height="13" rx="2" stroke="currentColor" stroke-width="2"/>
-                <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" stroke="currentColor" stroke-width="2"/>
-            </svg>`;
-        }, 2000);
-    });
-};
-
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
+    chatMessages.scrollTop = chatMessages.scrollHeight;
 }
 
 async function sendMessage() {
@@ -341,14 +349,9 @@ async function sendMessage() {
 
         if (response.ok) {
             replaceAssistantMessage(thinkingNode, data.response);
-            
-            if (data.needs_language) {
-                setStatus('Specify language', 'ready');
-            } else {
-                setStatus('Ready');
-            }
+            if (data.needs_language) setStatus('Specify language', 'ready');
+            else setStatus('Ready');
 
-            // Auto-save conversation after each message
             await autoSaveConversation();
         } else {
             replaceAssistantMessage(thinkingNode, `Error: ${data.error}`);
@@ -405,7 +408,6 @@ async function clearAllConversations() {
     if (!confirm('Delete ALL conversations? This cannot be undone.')) return;
 
     try {
-        // Delete all conversations
         for (const conv of conversations) {
             await fetch('/api/clear', {
                 method: 'POST',
@@ -413,7 +415,6 @@ async function clearAllConversations() {
                 body: JSON.stringify({ session_id: conv.session_id })
             });
         }
-
         conversations = [];
         renderConversations();
         startNewChat();
@@ -422,20 +423,20 @@ async function clearAllConversations() {
     }
 }
 
-// =====================================================
-// EVENT LISTENERS
-// =====================================================
+/* =========================
+   Events
+   ========================= */
+sidebarToggle && sidebarToggle.addEventListener('click', toggleSidebar);
+sidebarClose && sidebarClose.addEventListener('click', closeSidebar);
+sidebarOverlay && sidebarOverlay.addEventListener('click', closeSidebar);
 
-sidebarToggle.addEventListener('click', toggleSidebar);
-sidebarClose.addEventListener('click', closeSidebar);
-sidebarOverlay.addEventListener('click', closeSidebar);
-newChatBtn.addEventListener('click', startNewChat);
-clearAllBtn.addEventListener('click', clearAllConversations);
+newChatBtn && newChatBtn.addEventListener('click', startNewChat);
+clearAllBtn && clearAllBtn.addEventListener('click', clearAllConversations);
 
-sendBtn.addEventListener('click', sendMessage);
-clearBtn.addEventListener('click', clearConversation);
+sendBtn && sendBtn.addEventListener('click', sendMessage);
+clearBtn && clearBtn.addEventListener('click', clearConversation);
 
-messageInput.addEventListener('keydown', (e) => {
+messageInput && messageInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
         sendMessage();
@@ -450,14 +451,13 @@ function autoSizeToCap(el) {
     el.style.height = newHeight + 'px';
 }
 
-messageInput.addEventListener('input', function () {
+messageInput && messageInput.addEventListener('input', function () {
     autoSizeToCap(this);
 });
 
-// =====================================================
-// INITIALIZATION
-// =====================================================
-
+/* =========================
+   Init
+   ========================= */
 setStatus('Ready');
 addMessage(TIP_HTML, 'assistant', { html: true });
 loadConversations();
