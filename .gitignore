@@ -1,60 +1,18 @@
+# Environment files
+.env
+.env.local
+
+# Database
+*.db
+*.sqlite
+
 # Python
 __pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-venv/
-env/
-ENV/
-.venv
-pip-log.txt
-pip-delete-this-directory.txt
-.pytest_cache/
-*.egg-info/
-dist/
-build/
-
-# Model cache
-backend/model_cache/
-*.bin
-*.safetensors
-*.msgpack
-*.h5
+*.pyc
 
 # Node
 node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.npm
 
-# Environment variables
-.env
-.env.local
-.env.*.local
-
-# IDEs
+# IDE
 .vscode/
 .idea/
-*.swp
-*.swo
-*~
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Temporary files
-*.tmp
-*.temp
-.cache/
-
-# Data directory (conversation history)
-backend/data/
-data/
-
-# Logs directory
-backend/logs/
-logs/
-*.log
