@@ -60,11 +60,11 @@ Write naturally without markdown bold (**) or other formatting markers."""
         import re
         
         # Remove bold markers at start of lines
-        response = re.sub(r'^\*\*([^*]+)\*\*:', r'\1:', flags=re.MULTILINE)
-        response = re.sub(r'^\*\*([^*]+)\*\*', r'\1', flags=re.MULTILINE)
+        response = re.sub(r'^\*\*([^*]+)\*\*:', r'\1:', response, flags=re.MULTILINE)
+        response = re.sub(r'^\*\*([^*]+)\*\*', r'\1', response, flags=re.MULTILINE)
         
         # Remove inline bold that looks like formatting
-        response = re.sub(r'\*\*Brief explanation\*\*', 'Brief explanation', flags=re.IGNORECASE)
-        response = re.sub(r'\*\*Usage\*\*', 'Usage', flags=re.IGNORECASE)
+        response = re.sub(r'\*\*Brief explanation\*\*', 'Brief explanation', response, flags=re.IGNORECASE)
+        response = re.sub(r'\*\*Usage\*\*', 'Usage', response, flags=re.IGNORECASE)
         
         return response.strip()

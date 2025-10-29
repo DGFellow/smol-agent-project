@@ -24,7 +24,7 @@ class ChatAgent(BaseAgent):
     def _clean_response(self, response: str) -> str:
         """Clean up formatting issues"""
         # Remove excessive markdown formatting
-        response = re.sub(r'^\*\*([^*]+)\*\*:', r'\1:', flags=re.MULTILINE)
+        response = re.sub(r'^\*\*([^*]+)\*\*:', r'\1:', response, flags=re.MULTILINE)
         response = re.sub(r'###\s+', '', response)  # Remove header markers
         
         return response.strip()

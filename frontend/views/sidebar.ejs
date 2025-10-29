@@ -1,0 +1,44 @@
+<!-- Sidebar Overlay (mobile backdrop) -->
+<div id="sidebar-overlay" class="sidebar-overlay"></div>
+
+<!-- Sidebar -->
+<aside id="sidebar" class="sidebar">
+    <div class="sidebar-header">
+        <h2>💬 Conversations</h2>
+        <button id="sidebar-close" class="icon-btn-sidebar" aria-label="Close sidebar">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+        </button>
+    </div>
+
+    <div class="sidebar-actions">
+        <button id="new-chat-btn" class="btn btn-primary new-chat-btn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+            New Chat
+        </button>
+    </div>
+
+    <div class="sidebar-search">
+        <input 
+            type="text" 
+            id="conversation-search" 
+            placeholder="Search conversations..."
+            class="search-input"
+        />
+    </div>
+
+    <div class="sidebar-content">
+        <div id="conversation-list" class="conversation-list">
+            <!-- Conversations loaded dynamically -->
+        </div>
+    </div>
+
+    <div class="sidebar-footer">
+        <button id="clear-all-btn" class="btn btn-secondary btn-sm">
+            Clear All History
+        </button>
+    </div>
+</aside>

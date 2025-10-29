@@ -95,6 +95,7 @@ smol-agent-project/
 │   ├── views/
 │   │   ├── index.ejs
 │   │   ├── header.ejs
+│   │   ├──sidebar.ejs
 │   │   └── footer.ejs
 │   ├── public/
 │   │   ├── css/
