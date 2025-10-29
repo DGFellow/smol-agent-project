@@ -31,3 +31,11 @@ Flask-JWT-Extended==4.6.0
 Flask-Bcrypt==1.0.1
 PyJWT==2.8.0
 python-dotenv==1.0.0
+
+# Database & Auth
+PyJWT==2.8.0
+werkzeug==3.0.1
+
+# Optional: Vector Database for semantic search
+chromadb==0.4.22
+sentence-transformers==2.3.1

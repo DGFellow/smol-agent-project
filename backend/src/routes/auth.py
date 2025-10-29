@@ -1,5 +1,8 @@
+"""
+Authentication routes
+"""
 from flask import Blueprint, request, jsonify
-from src.models.user import User
+from src.database.user import User
 from src.middleware.auth import generate_token
 import re
 
@@ -10,7 +13,6 @@ def is_valid_email(email: str) -> bool:
     pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
     return re.match(pattern, email) is not None
 
-@auth_bp.route('/register', methods=['POST'])
 def register(db):
     """Register a new user"""
     data = request.json
@@ -32,8 +34,11 @@ def register(db):
         user_model = User(db)
         
         # Check if user exists
-        if user_model.get_by_username(username):
+        if user_model.exists(username=username):
             return jsonify({'error': 'Username already exists'}), 409
+        
+        if user_model.exists(email=email):
+            return jsonify({'error': 'Email already exists'}), 409
         
         # Create user
         user = user_model.create_user(username, email, password)
@@ -54,7 +59,6 @@ def register(db):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@auth_bp.route('/login', methods=['POST'])
 def login(db):
     """Login user"""
     data = request.json
@@ -72,7 +76,10 @@ def login(db):
             return jsonify({'error': 'Invalid credentials'}), 401
         
         # Get user info
-        user = user_model.get_by_username(username)
+        user = user_model.get_by_username_safe(username)
+        
+        if not user:
+            return jsonify({'error': 'Invalid credentials'}), 401
         
         # Update last login
         user_model.update_last_login(user['id'])
@@ -93,7 +100,6 @@ def login(db):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@auth_bp.route('/verify', methods=['GET'])
 def verify_token():
     """Verify if token is valid"""
     from src.middleware.auth import decode_token
