@@ -44,6 +44,7 @@ function enhanceCodeBlocksIn(root) {
 }
 
 function formatCodeBlocks(text) {
+    text = (text || '');
     text = text.replace(/```(\w+)\n([\s\S]*?)```/g, (match, lang, code) => {
         const language = lang || 'code';
         return `<div class="code-block">
@@ -101,8 +102,12 @@ const sidebar = document.getElementById('sidebar');
 const sidebarToggle = document.getElementById('sidebar-toggle');
 const sidebarClose = document.getElementById('sidebar-close');
 const sidebarOverlay = document.getElementById('sidebar-overlay');
-const appShell = document.getElementById('app-shell');      // NEW: grid shell root (<div class="app-shell">)
+const appShell = document.getElementById('app-shell');      // grid shell root (<div class="app-shell">)
 const container = document.getElementById('main-wrapper');  // right column content wrapper
+
+// Rail actions
+const railNewChat = document.getElementById('rail-new-chat');
+const railSearch = document.getElementById('rail-search');
 
 // Conversations UI (existing)
 const conversationList = document.getElementById('conversation-list');
@@ -130,16 +135,24 @@ const TIP_HTML = `
 /* =========================
    Sidebar: desktop rail vs mobile overlay
    ========================= */
+function reflectAriaExpanded(isExpanded) {
+    if (!sidebarToggle) return;
+    sidebarToggle.setAttribute('aria-expanded', isExpanded ? 'true' : 'false');
+    sidebarToggle.setAttribute('aria-pressed', isExpanded ? 'true' : 'false');
+}
+
 function openSidebar() {
     if (window.innerWidth <= 768) {
         // Mobile: overlay slide-in
         sidebar.classList.add('open');
         sidebarOverlay.classList.add('active');
         container && container.classList.add('sidebar-open');
+        reflectAriaExpanded(true);
         return;
     }
     // Desktop: widen the left grid column (no overlap)
     appShell && appShell.classList.add('expanded');
+    reflectAriaExpanded(true);
 }
 
 function closeSidebar() {
@@ -147,9 +160,11 @@ function closeSidebar() {
         sidebar.classList.remove('open');
         sidebarOverlay.classList.remove('active');
         container && container.classList.remove('sidebar-open');
+        reflectAriaExpanded(false);
         return;
     }
     appShell && appShell.classList.remove('expanded');
+    reflectAriaExpanded(false);
 }
 
 function toggleSidebar() {
@@ -345,16 +360,25 @@ async function sendMessage() {
             }),
         });
 
-        const data = await response.json();
+        // Robust JSON parse
+        let data = {};
+        try {
+            data = await response.json();
+        } catch (_) {
+            data = {};
+        }
 
         if (response.ok) {
-            replaceAssistantMessage(thinkingNode, data.response);
+            // Accept either {response: "..."} (your contract) or {text: "..."} (fallback)
+            const reply = (data && (data.response ?? data.text)) ?? '';
+            replaceAssistantMessage(thinkingNode, reply);
             if (data.needs_language) setStatus('Specify language', 'ready');
             else setStatus('Ready');
 
             await autoSaveConversation();
         } else {
-            replaceAssistantMessage(thinkingNode, `Error: ${data.error}`);
+            const err = (data && (data.error || data.message)) || 'Request failed';
+            replaceAssistantMessage(thinkingNode, `Error: ${err}`);
             setStatus('Error', 'error');
         }
     } catch (error) {
@@ -430,6 +454,21 @@ sidebarToggle && sidebarToggle.addEventListener('click', toggleSidebar);
 sidebarClose && sidebarClose.addEventListener('click', closeSidebar);
 sidebarOverlay && sidebarOverlay.addEventListener('click', closeSidebar);
 
+// Rail actions
+railNewChat && railNewChat.addEventListener('click', () => {
+    newChatBtn ? newChatBtn.click() : startNewChat();
+    // If the panel is collapsed, keep the rail visible and close overlay on mobile
+    if (window.innerWidth <= 768) closeSidebar();
+});
+railSearch && railSearch.addEventListener('click', () => {
+    const input = document.getElementById('conversation-search');
+    if (input) { input.focus(); input.select?.(); }
+    // Open the panel on desktop so the search field is visible
+    if (window.innerWidth > 768 && appShell && !appShell.classList.contains('expanded')) {
+        openSidebar();
+    }
+});
+
 newChatBtn && newChatBtn.addEventListener('click', startNewChat);
 clearAllBtn && clearAllBtn.addEventListener('click', clearAllConversations);
 
@@ -458,6 +497,7 @@ messageInput && messageInput.addEventListener('input', function () {
 /* =========================
    Init
    ========================= */
+reflectAriaExpanded(false);
 setStatus('Ready');
 addMessage(TIP_HTML, 'assistant', { html: true });
 loadConversations();

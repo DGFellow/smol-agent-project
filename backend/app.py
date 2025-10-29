@@ -83,14 +83,20 @@ def unified_message():
     global request_count, total_response_time
     start_time = time.time()
     
-    data = request.json
-    message = data.get('message', '').strip()
+    # Robust JSON handling
+    data = request.get_json(silent=True) or {}
+    raw_message = data.get('message', '')
     session_id = data.get('session_id', 'default')
+
+    # Type guard before .strip()
+    if not isinstance(raw_message, str):
+        raw_message = ''
+    message = raw_message.strip()
     
     if not message:
         return jsonify({"error": "No message provided"}), 400
     
-    # Sanitize input
+    # Sanitize input (now safe even if upstream ever passes None)
     message = TextProcessor.sanitize_input(message)
     
     # Check token count
@@ -242,7 +248,7 @@ def unified_message():
 @app.route('/api/clear', methods=['POST'])
 def clear_history():
     """Clear conversation history"""
-    data = request.json
+    data = request.get_json(silent=True) or {}
     session_id = data.get('session_id', 'default')
     save_before_clear = data.get('save', False)
     
@@ -268,7 +274,7 @@ def clear_history():
 @app.route('/api/save', methods=['POST'])
 def save_conversation():
     """Save current conversation"""
-    data = request.json
+    data = request.get_json(silent=True) or {}
     session_id = data.get('session_id', 'default')
     
     if session_id in sessions:

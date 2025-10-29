@@ -1,11 +1,12 @@
 <!-- Sidebar Overlay (mobile backdrop) -->
 <div id="sidebar-overlay" class="sidebar-overlay"></div>
 
-<!-- Sidebar: single stacked container (rows) -->
+<!-- Sidebar -->
 <aside id="sidebar" class="sidebar">
-  <div class="sidebar-list">
-    <!-- Row 1: Hamburger / toggle -->
-    <div class="nav-row">
+  <div class="sidebar-grid">
+    <!-- Fixed Rail -->
+    <div class="sidebar-rail">
+      <!-- Row 1: Hamburger -->
       <button
         id="sidebar-toggle"
         class="rail-btn"
@@ -13,16 +14,13 @@
         aria-label="Toggle sidebar"
         aria-expanded="false"
         aria-pressed="false"
-        type="button"
-      >
+        type="button">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
         </svg>
       </button>
-    </div>
 
-    <!-- Row 2: New chat (single morphing element: icon-only → icon + label) -->
-    <div class="nav-row">
+      <!-- Row 2: New chat (morphs icon-only → icon+label) -->
       <button id="rail-new-chat" class="nav-item" title="New chat" aria-label="New chat" type="button">
         <span class="nav-icon">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -33,8 +31,8 @@
       </button>
     </div>
 
-    <!-- Row 3: Panel content (conversations + footer) -->
-    <div class="panel-row">
+    <!-- Expanding Panel -->
+    <div class="sidebar-panel">
       <div class="sidebar-content">
         <div id="conversation-list" class="conversation-list">
           <% if (typeof conversations !== 'undefined' && conversations.length) { %>
@@ -70,7 +68,6 @@
         </div>
       </div>
 
-      <!-- Footer -->
       <div class="sidebar-footer">
         <button id="import-btn" class="btn btn-secondary btn-sm" type="button">Settings</button>
       </div>

@@ -25,11 +25,12 @@ class ChatAgent(BaseAgent):
         """Clean up formatting issues"""
         # Remove excessive markdown formatting
         # strip Assistant prefix
-        response = re.sub(r'^\s*(?:🤖\s*)?Assistant\s*\n?', '', response)  # strip Assistant prefix
+        response = re.sub(r'^\s*(?:🤖\s*)?Assistant\s*\n?', '', response)
         # ensure bullets/numbers start on new lines for markdown lists
         response = re.sub(r'(?<!\n)(\d+\.\s)', r'\n\1', response)
         response = re.sub(r'(?<!\n)-\s', '\n- ', response)
-        response = re.sub(r'^\*\*([^*]+)\*\*:', r'\1:', flags=re.MULTILINE)
-        response = re.sub(r'###\s+', '', response)  # Remove header markers
+        # FIX: include the string argument when using flags
+        response = re.sub(r'^\*\*([^*]+)\*\*:', r'\1:', response, flags=re.MULTILINE)
+        response = re.sub(r'###\s+', '', response)
         
         return response.strip()
