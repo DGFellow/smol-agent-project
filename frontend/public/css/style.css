@@ -786,3 +786,18 @@ code {
         display: none;
     }
 }
+/* Markdown readability */
+.message .message-label { font-weight: 600; margin-bottom: 4px; }
+.message p { margin: 0 0 0.6rem 0; line-height: 1.5; }
+.message ul, .message ol { margin: 0.5rem 0 0.8rem 1.3rem; }
+.message li { margin: 0.25rem 0; }
+.message h1, .message h2, .message h3 { margin: 0.8rem 0 0.4rem; line-height: 1.25; }
+.message code.inline-code, .message code:not([class*="language-"]) {
+    padding: 0.1rem 0.3rem; border-radius: 4px; background: var(--bg-2); font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.message pre { padding: 0.75rem; background: var(--bg-2); border: 1px solid var(--border); border-radius: 8px; overflow: auto; }
+.code-block { margin: 0.75rem 0; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+.code-block .code-header { display:flex; align-items:center; justify-content:space-between; padding: 0.4rem 0.6rem; border-bottom:1px solid var(--border); font-size: 12px; }
+.code-block .code-lang { opacity: 0.8; }
+.code-block .copy-btn { border: 0; padding: 0.25rem 0.5rem; border-radius: 6px; cursor: pointer; background: var(--bg-3); color: var(--text); }
+.code-block pre { margin: 0; border: 0; border-radius: 0; }

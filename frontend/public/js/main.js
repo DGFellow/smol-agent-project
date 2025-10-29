@@ -1,6 +1,45 @@
 // Generate simple session ID
 let SESSION_ID = 'session_' + Date.now();
 
+
+function renderMarkdown(text) {
+    if (typeof marked === 'undefined' || typeof DOMPurify === 'undefined') {
+        // Fallback: basic formatting
+        return formatCodeBlocks(text);
+    }
+    const html = marked.parse(text || "");
+    const safe = DOMPurify.sanitize(html, {USE_PROFILES: {html: true}});
+    return safe;
+}
+
+function enhanceCodeBlocksIn(root) {
+    const codeBlocks = root.querySelectorAll('pre > code');
+    codeBlocks.forEach(code => {
+        const pre = code.parentElement;
+        const lang = (code.className.match(/language-([\w-]+)/) || [,'code'])[1];
+        const wrapper = document.createElement('div');
+        wrapper.className = 'code-block';
+        const header = document.createElement('div');
+        header.className = 'code-header';
+        const langSpan = document.createElement('span');
+        langSpan.className = 'code-lang';
+        langSpan.textContent = lang;
+        const btn = document.createElement('button');
+        btn.className = 'copy-btn';
+        btn.title = 'Copy code';
+        btn.textContent = 'Copy';
+        btn.addEventListener('click', () => {
+            navigator.clipboard.writeText(code.innerText);
+            btn.textContent = 'Copied';
+            setTimeout(()=> btn.textContent='Copy', 1200);
+        });
+        header.appendChild(langSpan);
+        header.appendChild(btn);
+        pre.replaceWith(wrapper);
+        wrapper.appendChild(header);
+        wrapper.appendChild(pre);
+    });
+}
 // DOM Elements
 const messageInput = document.getElementById('message-input');
 const sendBtn = document.getElementById('send-btn');
@@ -196,18 +235,14 @@ function addMessage(text, sender, options = {}) {
 
     const content = document.createElement('div');
 
-    if (html) {
-        content.innerHTML = text;
-    } else if (typeof text === 'string' && text.includes('```')) {
-        content.innerHTML = formatCodeBlocks(text);
-    } else {
-        content.textContent = text;
-    }
+    if (html) { content.innerHTML = text; } else { content.innerHTML = renderMarkdown(text); }
 
     messageDiv.appendChild(label);
     messageDiv.appendChild(content);
     chatMessages.appendChild(messageDiv);
+    enhanceCodeBlocksIn(content);
     chatMessages.scrollTop = chatMessages.scrollHeight;
+    enhanceCodeBlocksIn(content);
 
     return messageDiv;
 }
@@ -229,13 +264,10 @@ function replaceAssistantMessage(node, text) {
     node.classList.remove('thinking');
     
     const content = node.children[1];
-    if (typeof text === 'string' && text.includes('```')) {
-        content.innerHTML = formatCodeBlocks(text);
-    } else {
-        content.textContent = text;
-    }
+    content.innerHTML = renderMarkdown(text);
     
     chatMessages.scrollTop = chatMessages.scrollHeight;
+    enhanceCodeBlocksIn(content);
 }
 
 function formatCodeBlocks(text) {
