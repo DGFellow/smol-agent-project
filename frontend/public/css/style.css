@@ -44,12 +44,13 @@ body {
     flex-wrap: wrap;
     align-items: center;
     gap: 0.5rem;
+    /* Keep title on left, chip on right */
+    justify-content: space-between;
 }
 
 .site-header h1 {
     color: var(--primary);
-    font-size: 1.5rem;
-    font-weight: 700;
+    font-size: 1.25rem;
     margin: 0;
 }
 
@@ -58,6 +59,9 @@ body {
     margin: 0;
     font-size: 0.95rem;
 }
+
+/* Push header status chip to the far right */
+#header-status { margin-left: auto; }
 
 /* Responsive header - wrap on small screens */
 @media (max-width: 600px) {
@@ -478,9 +482,9 @@ body {
     gap: 0.5rem;
     padding: 0.5rem 1rem;
     border-radius: 9999px;
-    background: rgba(255, 255, 255, 0.25);
+    background: rgba(47, 47, 50, 0.25);
     border: 1px solid rgba(255, 255, 255, 0.4);
-    color: #fff;
+    color: #1e1e1e;
     font-weight: 600;
     font-size: 0.875rem;
 }
@@ -538,7 +542,7 @@ body {
 
 .message.assistant {
     background: white;
-    border: 1px solid var(--border);
+    border: 1px solid var(--primary);
     margin-right: 20%;
 }
 
@@ -598,9 +602,9 @@ body {
    ======================================== */
 
 .input-area {
-    background: white;
+    /* match messages area color */
+    background: var(--light);
     padding: 1rem 1.5rem;
-    border-top: 1px solid var(--border);
 }
 
 .composer {
@@ -786,6 +790,7 @@ code {
         display: none;
     }
 }
+
 /* Markdown readability */
 .message .message-label { font-weight: 600; margin-bottom: 4px; }
 .message p { margin: 0 0 0.6rem 0; line-height: 1.5; }

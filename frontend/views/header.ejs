@@ -5,8 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><%= title %></title>
     <link rel="stylesheet" href="/css/style.css">
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
 </head>
 <body><!DOCTYPE html>
 <html lang="en">
@@ -21,7 +19,14 @@
 <body>
     <header class="site-header">
         <div class="site-header-content">
+            <!-- Title stays EXACTLY where it is (left) -->
             <h1>🤖 Smolagent Framework</h1>
             <p>Local AI Agent powered by Qwen Models</p>
+
+            <!-- Status chip on the RIGHT end -->
+            <div class="status-chip" id="header-status">
+                <span id="status-indicator" class="status-dot"></span>
+                <span id="status-text">Ready</span>
+            </div>
         </div>
     </header>
