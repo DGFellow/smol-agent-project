@@ -156,22 +156,31 @@ def unified_message():
         is_new_conversation = False
         conversation_title = None
         
-        if not conversation_id:
+        # FIX: Check if conversation_id is None, empty, or the string 'null'
+        if not conversation_id or conversation_id == 'null':
             # Generate title from first message
             title = generate_title_from_message(message)
-            # OR use LLM (more sophisticated but slower):
-            # title = generate_title_with_llm(models['instruct'][0], models['instruct'][1], message)
             
             conv = conversation_model.create_conversation(user_id, title=title)
             conversation_id = conv['id']
             conversation_title = title
             is_new_conversation = True
+            print(f"✓ Created new conversation {conversation_id} for user {user_id}")
         else:
             # Verify conversation ownership
+            print(f"Checking ownership of conversation {conversation_id} for user {user_id}")
             conv = conversation_model.get_by_id(conversation_id)
-            if not conv or conv['user_id'] != user_id:
+            
+            if not conv:
+                print(f"✗ Conversation {conversation_id} not found")
+                return jsonify({"error": "Conversation not found"}), 404
+            
+            if conv['user_id'] != user_id:
+                print(f"✗ Conversation {conversation_id} belongs to user {conv['user_id']}, not {user_id}")
                 return jsonify({"error": "Unauthorized"}), 403
+            
             conversation_title = conv['title']
+            print(f"✓ Using existing conversation {conversation_id}")
         
         # Save user message to database
         conversation_model.add_message(conversation_id, 'user', message)

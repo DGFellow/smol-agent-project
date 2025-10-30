@@ -1,6 +1,3 @@
-// Generate simple session ID
-let SESSION_ID = 'session_' + Date.now();
-
 /* =========================
    Markdown render helpers
    ========================= */
@@ -89,8 +86,8 @@ function escapeHtml(text) {
 /* =========================
    DOM Elements
    ========================= */
-const messageInput  = document.getElementById('message-input'); // (will exist after move)
-const sendBtn       = document.getElementById('send-btn');       // (created when moved, we’ll add listeners)
+const messageInput  = document.getElementById('message-input');
+const sendBtn       = document.getElementById('send-btn');
 const clearBtn      = document.getElementById('clear-btn');
 const chatMessages  = document.getElementById('chat-messages');
 const statusText    = document.getElementById('status-text');
@@ -125,7 +122,7 @@ const clearAllBtn   = document.getElementById('clear-all-btn');
 /* =========================
    State
    ========================= */
-let currentConversationId = SESSION_ID;
+let currentConversationId = null;
 let conversations = [];
 let composerMoved = false;
 
@@ -187,7 +184,7 @@ function moveComposerToBottom() {
   const send     = unifiedComposer.querySelector('#hero-send');
 
   if (textarea) {
-    textarea.id = 'message-input';         // now the bottom composer textarea
+    textarea.id = 'message-input';
     textarea.placeholder = 'Ask anything…';
   }
   if (send) {
@@ -212,7 +209,7 @@ function moveComposerToBottom() {
 }
 
 /* =========================
-   Sidebar controls (unchanged)
+   Sidebar controls
    ========================= */
 function reflectAriaExpanded(isExpanded) {
   if (!sidebarToggle) return;
@@ -339,7 +336,6 @@ async function loadConversation(conversationId) {
 
     if (response.ok && data.conversation) {
       currentConversationId = conversationId;
-      SESSION_ID = conversationId;
 
       chatMessages.innerHTML = '';
       const messages = data.conversation.messages || [];
@@ -386,7 +382,6 @@ function exportConversation(conversationId) {
 }
 
 function startNewChat() {
-  SESSION_ID = null;
   currentConversationId = null;
   chatMessages.innerHTML = '';
   setHeaderTitle('');
@@ -483,13 +478,19 @@ async function sendMessageWith(raw) {
   const thinkingNode = addThinkingMessage();
 
   try {
+    // Only include conversation_id in the request if it exists
+    const requestBody = {
+      message: message
+    };
+    
+    if (currentConversationId) {
+      requestBody.conversation_id = currentConversationId;
+    }
+    
     const response = await fetch('/api/message', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        message,
-        conversation_id: currentConversationId
-      })
+      body: JSON.stringify(requestBody)
     });
 
     let data = {};
@@ -501,7 +502,6 @@ async function sendMessageWith(raw) {
 
       if (data.conversation_id) {
         currentConversationId = data.conversation_id;
-        SESSION_ID = data.conversation_id;
       }
 
       await loadConversations();
@@ -536,41 +536,55 @@ async function sendHero() {
 
 async function clearConversation() {
   if (!confirm('Clear this conversation?')) return;
-  try {
-    await fetch('/api/clear', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ session_id: SESSION_ID, save: false })
-    });
+  
+  if (!currentConversationId) {
+    // No conversation to clear
     chatMessages.innerHTML = '';
     setHeaderTitle('');
     setStatus('Ready');
     startNewChat();
+    return;
+  }
+
+  try {
+    const response = await fetch(`/api/conversations/${currentConversationId}`, {
+      method: 'DELETE'
+    });
+
+    if (response.ok) {
+      chatMessages.innerHTML = '';
+      setHeaderTitle('');
+      setStatus('Ready');
+      startNewChat();
+    }
   } catch (error) {
+    console.error('Error clearing conversation:', error);
     setStatus('Error', 'error');
   }
 }
 
 async function clearAllConversations() {
   if (!confirm('Delete ALL conversations? This cannot be undone.')) return;
+  
   try {
-    for (const conv of conversations) {
-      await fetch('/api/clear', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ session_id: conv.session_id })
-      });
-    }
+    // Delete all conversations via API
+    const deletePromises = conversations.map(conv => 
+      fetch(`/api/conversations/${conv.id}`, { method: 'DELETE' })
+    );
+    
+    await Promise.all(deletePromises);
+    
     conversations = [];
     renderConversations();
     startNewChat();
   } catch (error) {
     console.error('Error clearing all:', error);
+    setStatus('Error', 'error');
   }
 }
 
 /* =========================
-   Account Popup Menu (unchanged)
+   Account Popup Menu
    ========================= */
 const accountTrigger = document.getElementById('account-trigger');
 const accountPopup = document.getElementById('account-popup');

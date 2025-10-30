@@ -21,10 +21,12 @@ app.use(session({
     resave: false,
     saveUninitialized: false,
     cookie: {
-        secure: false, // Set to true in production with HTTPS
+        secure: false,
         httpOnly: true,
-        maxAge: 24 * 60 * 60 * 1000 // 24 hours
-    }
+        maxAge: 24 * 60 * 60 * 1000, // 24 hours
+        sameSite: 'lax'  // ADD THIS
+    },
+    name: 'smolagent.sid'  // ADD THIS - custom session cookie name
 }));
 
 app.set('view engine', 'ejs');

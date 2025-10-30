@@ -16,16 +16,21 @@ def generate_token(user_id: int, username: str) -> str:
         'exp': datetime.utcnow() + timedelta(hours=JWT_EXPIRATION_HOURS),
         'iat': datetime.utcnow()
     }
-    return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
+    token = jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
+    print(f"Generated token for user {username} (ID: {user_id})")  # DEBUG
+    return token
 
 def decode_token(token: str) -> dict:
     """Decode and verify JWT token"""
     try:
         payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        print(f"✓ Token decoded successfully for user: {payload.get('username')}")  # DEBUG
         return payload
     except jwt.ExpiredSignatureError:
+        print("✗ Token expired")  # DEBUG
         return None
-    except jwt.InvalidTokenError:
+    except jwt.InvalidTokenError as e:
+        print(f"✗ Invalid token: {e}")  # DEBUG
         return None
 
 def token_required(f):
@@ -36,23 +41,31 @@ def token_required(f):
         
         # Get token from Authorization header
         auth_header = request.headers.get('Authorization')
+        print(f"Auth header received: {auth_header[:50] if auth_header else 'None'}...")  # DEBUG
+        
         if auth_header:
             try:
                 token = auth_header.split(' ')[1]  # Bearer <token>
+                print(f"Extracted token: {token[:50]}...")  # DEBUG
             except IndexError:
+                print("✗ Invalid token format (no space after Bearer)")  # DEBUG
                 return jsonify({'error': 'Invalid token format'}), 401
         
         if not token:
+            print("✗ No token provided")  # DEBUG
             return jsonify({'error': 'Token is missing'}), 401
         
         # Verify token
         payload = decode_token(token)
         if not payload:
+            print("✗ Token verification failed")  # DEBUG
             return jsonify({'error': 'Token is invalid or expired'}), 401
         
         # Add user info to request
         request.user_id = payload['user_id']
         request.username = payload['username']
+        
+        print(f"✓ Request authorized for user: {payload['username']} (ID: {payload['user_id']})")  # DEBUG
         
         return f(*args, **kwargs)
     
