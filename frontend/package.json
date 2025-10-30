@@ -7,15 +7,20 @@
     "start": "node server.js",
     "dev": "nodemon server.js"
   },
-  "keywords": ["ai", "agent", "qwen"],
+  "keywords": [
+    "ai",
+    "agent",
+    "qwen"
+  ],
   "author": "Your Name",
   "license": "MIT",
   "dependencies": {
     "axios": "^1.6.2",
+    "cookie-parser": "^1.4.7",
     "dotenv": "^16.3.1",
     "ejs": "^3.1.9",
     "express": "^4.18.2",
-    "cookie-parser": "^1.4.6"
+    "express-session": "^1.18.2"
   },
   "devDependencies": {
     "nodemon": "^3.0.2"

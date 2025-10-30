@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify
-from src.models.user import User
+from src.database.user import User
 from src.middleware.auth import generate_token
 import re
 
