@@ -113,6 +113,14 @@ class Conversation:
         
         return conversations
     
+    def get_conversation_count(self, user_id: int) -> int:
+        """Get total conversation count for user"""
+        cursor = self.db.execute(
+            f'SELECT COUNT(*) FROM {self.table_name} WHERE user_id = ?',
+            (user_id,)
+        )
+        return cursor.fetchone()[0]
+    
     def add_message(self, conversation_id: int, role: str, content: str, 
                    agent: str = None, model: str = None) -> dict:
         """Add a message to a conversation"""
