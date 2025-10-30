@@ -1,32 +1,11 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><%= title %></title>
-    <link rel="stylesheet" href="/css/style.css">
-</head>
-<body><!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><%= title %></title>
-    <link rel="stylesheet" href="/css/style.css">
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
-</head>
-<body>
-    <header class="site-header">
-        <div class="site-header-content">
-            <!-- Title stays EXACTLY where it is (left) -->
-            <h1>🤖 Smolagent Framework</h1>
-            <p>Local AI Agent powered by Qwen Models</p>
+<header class="site-header slim" role="banner">
+  <div class="site-header-content">
+    <!-- Title is blank on start; populated after the first reply / when a title exists -->
+    <h1 id="header-title" class="conv-title" aria-live="polite" aria-atomic="true"></h1>
 
-            <!-- Status chip on the RIGHT end -->
-            <div class="status-chip" id="header-status">
-                <span id="status-indicator" class="status-dot"></span>
-                <span id="status-text">Ready</span>
-            </div>
-        </div>
-    </header>
+    <div id="header-status" class="status-chip">
+      <span id="status-indicator" class="status-dot"></span>
+      <span id="status-text">Ready</span>
+    </div>
+  </div>
+</header>

@@ -15,13 +15,13 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.static('public'));
 app.use(cookieParser());
 
-// Session configuration
+// Session configuration (IMPORTANT!)
 app.use(session({
     secret: process.env.SESSION_SECRET || 'dev-secret-change-in-production',
     resave: false,
     saveUninitialized: false,
     cookie: {
-        secure: process.env.NODE_ENV === 'production',
+        secure: false, // Set to true in production with HTTPS
         httpOnly: true,
         maxAge: 24 * 60 * 60 * 1000 // 24 hours
     }
@@ -30,11 +30,11 @@ app.use(session({
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
-// ============================================
-// AUTH MIDDLEWARE
-// ============================================
-
+// Auth middleware
 function requireAuth(req, res, next) {
+    console.log('Session check:', req.session); // DEBUG
+    console.log('Token exists:', !!req.session.token); // DEBUG
+    
     if (!req.session.token) {
         return res.redirect('/login');
     }
@@ -48,10 +48,7 @@ function redirectIfAuth(req, res, next) {
     next();
 }
 
-// ============================================
-// PAGE ROUTES
-// ============================================
-
+// Page routes
 app.get('/login', redirectIfAuth, (req, res) => {
     res.render('login', { 
         title: 'Login - Smolagent',
@@ -67,6 +64,7 @@ app.get('/register', redirectIfAuth, (req, res) => {
 });
 
 app.get('/', requireAuth, (req, res) => {
+    console.log('Rendering index, user:', req.session.user); // DEBUG
     res.render('index', { 
         title: 'Smolagent Framework - Unified AI Assistant',
         backendUrl: BACKEND_URL,
@@ -79,20 +77,22 @@ app.get('/logout', (req, res) => {
     res.redirect('/login');
 });
 
-// ============================================
-// AUTH API ENDPOINTS
-// ============================================
-
+// Auth API endpoints
 app.post('/api/auth/register', async (req, res) => {
     try {
         const response = await axios.post(`${BACKEND_URL}/api/auth/register`, req.body);
+        
+        console.log('Register response:', response.data); // DEBUG
         
         // Store token and user in session
         req.session.token = response.data.token;
         req.session.user = response.data.user;
         
+        console.log('Session after register:', req.session); // DEBUG
+        
         res.json(response.data);
     } catch (error) {
+        console.error('Register error:', error.response?.data); // DEBUG
         res.status(error.response?.status || 500).json({ 
             error: error.response?.data?.error || 'Registration failed' 
         });
@@ -103,23 +103,27 @@ app.post('/api/auth/login', async (req, res) => {
     try {
         const response = await axios.post(`${BACKEND_URL}/api/auth/login`, req.body);
         
+        console.log('Login response:', response.data); // DEBUG
+        
         // Store token and user in session
         req.session.token = response.data.token;
         req.session.user = response.data.user;
         
+        console.log('Session after login:', req.session); // DEBUG
+        
         res.json(response.data);
     } catch (error) {
+        console.error('Login error:', error.response?.data); // DEBUG
         res.status(error.response?.status || 500).json({ 
             error: error.response?.data?.error || 'Login failed' 
         });
     }
 });
 
-// ============================================
-// PROTECTED API ENDPOINTS
-// ============================================
-
+// Protected API endpoints
 app.post('/api/message', requireAuth, async (req, res) => {
+    console.log('Sending message with token:', req.session.token ? 'YES' : 'NO'); // DEBUG
+    
     try {
         const response = await axios.post(`${BACKEND_URL}/api/message`, req.body, {
             headers: {
@@ -128,40 +132,12 @@ app.post('/api/message', requireAuth, async (req, res) => {
         });
         res.json(response.data);
     } catch (error) {
-        if (error.response?.status === 401) {
+        console.error('Message error:', error.response?.status, error.response?.data); // DEBUG
+        
+        if (error.response?.status === 401 || error.response?.status === 403) {
             req.session.destroy();
             return res.status(401).json({ error: 'Session expired. Please login again.' });
         }
-        res.status(error.response?.status || 500).json({ 
-            error: error.response?.data?.error || 'Backend error' 
-        });
-    }
-});
-
-app.post('/api/clear', requireAuth, async (req, res) => {
-    try {
-        const response = await axios.post(`${BACKEND_URL}/api/clear`, req.body, {
-            headers: {
-                'Authorization': `Bearer ${req.session.token}`
-            }
-        });
-        res.json(response.data);
-    } catch (error) {
-        res.status(error.response?.status || 500).json({ 
-            error: error.response?.data?.error || 'Backend error' 
-        });
-    }
-});
-
-app.post('/api/save', requireAuth, async (req, res) => {
-    try {
-        const response = await axios.post(`${BACKEND_URL}/api/save`, req.body, {
-            headers: {
-                'Authorization': `Bearer ${req.session.token}`
-            }
-        });
-        res.json(response.data);
-    } catch (error) {
         res.status(error.response?.status || 500).json({ 
             error: error.response?.data?.error || 'Backend error' 
         });
@@ -201,6 +177,36 @@ app.get('/api/conversations/:id', requireAuth, async (req, res) => {
 app.delete('/api/conversations/:id', requireAuth, async (req, res) => {
     try {
         const response = await axios.delete(`${BACKEND_URL}/api/conversations/${req.params.id}`, {
+            headers: {
+                'Authorization': `Bearer ${req.session.token}`
+            }
+        });
+        res.json(response.data);
+    } catch (error) {
+        res.status(error.response?.status || 500).json({ 
+            error: error.response?.data?.error || 'Backend error' 
+        });
+    }
+});
+
+app.post('/api/clear', requireAuth, async (req, res) => {
+    try {
+        const response = await axios.post(`${BACKEND_URL}/api/clear`, req.body, {
+            headers: {
+                'Authorization': `Bearer ${req.session.token}`
+            }
+        });
+        res.json(response.data);
+    } catch (error) {
+        res.status(error.response?.status || 500).json({ 
+            error: error.response?.data?.error || 'Backend error' 
+        });
+    }
+});
+
+app.post('/api/save', requireAuth, async (req, res) => {
+    try {
+        const response = await axios.post(`${BACKEND_URL}/api/save`, req.body, {
             headers: {
                 'Authorization': `Bearer ${req.session.token}`
             }
