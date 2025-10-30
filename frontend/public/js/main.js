@@ -102,14 +102,14 @@ const sidebar = document.getElementById('sidebar');
 const sidebarToggle = document.getElementById('sidebar-toggle');
 const sidebarClose = document.getElementById('sidebar-close');
 const sidebarOverlay = document.getElementById('sidebar-overlay');
-const appShell = document.getElementById('app-shell');      // grid shell root (<div class="app-shell">)
-const container = document.getElementById('main-wrapper');  // right column content wrapper
+const appShell = document.getElementById('app-shell');
+const container = document.getElementById('main-wrapper');
 
 // Rail actions
 const railNewChat = document.getElementById('rail-new-chat');
 const railSearch = document.getElementById('rail-search');
 
-// Conversations UI (existing)
+// Conversations UI
 const conversationList = document.getElementById('conversation-list');
 const newChatBtn = document.getElementById('new-chat-btn');
 const clearAllBtn = document.getElementById('clear-all-btn');
@@ -143,14 +143,12 @@ function reflectAriaExpanded(isExpanded) {
 
 function openSidebar() {
     if (window.innerWidth <= 768) {
-        // Mobile: overlay slide-in
         sidebar.classList.add('open');
         sidebarOverlay.classList.add('active');
         container && container.classList.add('sidebar-open');
         reflectAriaExpanded(true);
         return;
     }
-    // Desktop: widen the left grid column (no overlap)
     appShell && appShell.classList.add('expanded');
     reflectAriaExpanded(true);
 }
@@ -177,7 +175,7 @@ function toggleSidebar() {
 }
 
 /* =========================
-   Conversations (existing)
+   Conversations
    ========================= */
 async function loadConversations() {
     try {
@@ -220,7 +218,6 @@ function renderConversations() {
         `;
     }).join('');
 
-    // Click handlers
     document.querySelectorAll('.conversation-item').forEach(item => {
         item.addEventListener('click', (e) => {
             if (!e.target.classList.contains('conversation-delete')) {
@@ -252,10 +249,8 @@ function formatDate(date) {
 }
 
 async function loadConversation(sessionId) {
-    // TODO: Implement loading conversation from backend
     currentConversationId = sessionId;
     SESSION_ID = sessionId;
-
     chatMessages.innerHTML = '';
     setStatus('Loaded conversation');
     renderConversations();
@@ -265,7 +260,6 @@ async function loadConversation(sessionId) {
 async function deleteConversation(sessionId) {
     if (!confirm('Delete this conversation?')) return;
     try {
-        // TODO: Add delete endpoint to backend
         conversations = conversations.filter(c => c.session_id !== sessionId);
         renderConversations();
         if (sessionId === currentConversationId) {
@@ -290,6 +284,7 @@ function startNewChat() {
    Chat functions
    ========================= */
 function setStatus(text, type = 'ready') {
+    if (!statusText || !statusDot) return;
     statusText.textContent = text;
     statusDot.className = 'status-dot';
     if (type === 'loading') statusDot.classList.add('loading');
@@ -360,7 +355,6 @@ async function sendMessage() {
             }),
         });
 
-        // Robust JSON parse
         let data = {};
         try {
             data = await response.json();
@@ -369,7 +363,6 @@ async function sendMessage() {
         }
 
         if (response.ok) {
-            // Accept either {response: "..."} (your contract) or {text: "..."} (fallback)
             const reply = (data && (data.response ?? data.text)) ?? '';
             replaceAssistantMessage(thinkingNode, reply);
             if (data.needs_language) setStatus('Specify language', 'ready');
@@ -448,6 +441,116 @@ async function clearAllConversations() {
 }
 
 /* =========================
+   Account Popup Menu
+   ========================= */
+const accountTrigger = document.getElementById('account-trigger');
+const accountPopup = document.getElementById('account-popup');
+const accountFooterToggle = accountPopup ? accountPopup.querySelector('.account-popup-footer-toggle') : null;
+
+if (accountTrigger && accountPopup) {
+    // Toggle popup
+    accountTrigger.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const isExpanded = accountTrigger.getAttribute('aria-expanded') === 'true';
+        
+        if (isExpanded) {
+            closeAccountPopup();
+        } else {
+            openAccountPopup();
+        }
+    });
+    
+    // Footer toggle button
+    if (accountFooterToggle) {
+        accountFooterToggle.addEventListener('click', (e) => {
+            e.stopPropagation();
+            closeAccountPopup();
+        });
+    }
+    
+    // Close when clicking outside
+    document.addEventListener('click', (e) => {
+        if (!accountPopup.contains(e.target) && !accountTrigger.contains(e.target)) {
+            closeAccountPopup();
+        }
+    });
+    
+    // Close on escape
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && accountTrigger.getAttribute('aria-expanded') === 'true') {
+            closeAccountPopup();
+            accountTrigger.focus();
+        }
+    });
+    
+    // Prevent popup from closing when clicking inside it
+    accountPopup.addEventListener('click', (e) => {
+        // Allow logout link to work
+        if (e.target.tagName === 'A' && e.target.getAttribute('href') === '/logout') {
+            return;
+        }
+        e.stopPropagation();
+    });
+}
+
+function openAccountPopup() {
+    if (!accountTrigger || !accountPopup) return;
+    accountTrigger.setAttribute('aria-expanded', 'true');
+    accountPopup.setAttribute('aria-hidden', 'false');
+}
+
+function closeAccountPopup() {
+    if (!accountTrigger || !accountPopup) return;
+    accountTrigger.setAttribute('aria-expanded', 'false');
+    accountPopup.setAttribute('aria-hidden', 'true');
+}
+
+// Menu item handlers
+const menuSettings = document.getElementById('menu-settings');
+const menuLanguage = document.getElementById('menu-language');
+const menuHelp = document.getElementById('menu-help');
+const menuUpgrade = document.getElementById('menu-upgrade');
+const menuLearn = document.getElementById('menu-learn');
+
+if (menuSettings) {
+    menuSettings.addEventListener('click', (e) => {
+        e.preventDefault();
+        closeAccountPopup();
+        alert('Settings\n\nConfigure your preferences:\n• Profile settings\n• API keys\n• Appearance\n• Privacy');
+    });
+}
+
+if (menuLanguage) {
+    menuLanguage.addEventListener('click', (e) => {
+        e.preventDefault();
+        alert('Language\n\nSelect your preferred language:\n• English\n• Español\n• Français\n• Deutsch');
+    });
+}
+
+if (menuHelp) {
+    menuHelp.addEventListener('click', (e) => {
+        e.preventDefault();
+        closeAccountPopup();
+        alert('Get Help\n\n• Documentation\n• Support center\n• Community forum');
+    });
+}
+
+if (menuUpgrade) {
+    menuUpgrade.addEventListener('click', (e) => {
+        e.preventDefault();
+        closeAccountPopup();
+        alert('Upgrade Plan\n\nUnlock premium features:\n• Unlimited conversations\n• Priority support\n• Advanced AI models');
+    });
+}
+
+if (menuLearn) {
+    menuLearn.addEventListener('click', (e) => {
+        e.preventDefault();
+        alert('Learn More\n\n• Product updates\n• Tutorials\n• Best practices');
+    });
+}
+
+/* =========================
    Events
    ========================= */
 sidebarToggle && sidebarToggle.addEventListener('click', toggleSidebar);
@@ -457,13 +560,12 @@ sidebarOverlay && sidebarOverlay.addEventListener('click', closeSidebar);
 // Rail actions
 railNewChat && railNewChat.addEventListener('click', () => {
     newChatBtn ? newChatBtn.click() : startNewChat();
-    // If the panel is collapsed, keep the rail visible and close overlay on mobile
     if (window.innerWidth <= 768) closeSidebar();
 });
+
 railSearch && railSearch.addEventListener('click', () => {
     const input = document.getElementById('conversation-search');
     if (input) { input.focus(); input.select?.(); }
-    // Open the panel on desktop so the search field is visible
     if (window.innerWidth > 768 && appShell && !appShell.classList.contains('expanded')) {
         openSidebar();
     }

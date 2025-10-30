@@ -330,6 +330,241 @@ body {
 .btn-secondary:hover { background: #4b5563; }
 
 /* ========================================
+   ACCOUNT BUTTON (BOTTOM OF RAIL)
+   ======================================== */
+
+.account-btn {
+    margin-top: auto;
+    padding: 0;
+    overflow: visible;
+    position: relative;
+}
+
+.account-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 0.95rem;
+    text-transform: uppercase;
+}
+
+.account-btn:hover .account-avatar {
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+}
+
+/* ========================================
+   ACCOUNT POPUP MENU (ChatGPT-style)
+   ======================================== */
+
+.account-popup {
+    position: fixed;
+    bottom: calc(var(--rail-pad) + var(--rail-row) + 12px);
+    left: calc(var(--sidebar-collapsed) + 12px);
+    width: 340px;
+    max-height: calc(100vh - 100px);
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+    overflow: hidden;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(10px) scale(0.95);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 1001;
+}
+
+.account-popup[aria-hidden="false"] {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0) scale(1);
+}
+
+/* Header with user info */
+.account-popup-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 20px;
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%);
+}
+
+.account-popup-avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 1.2rem;
+    flex-shrink: 0;
+}
+
+.account-popup-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.account-popup-name {
+    font-weight: 600;
+    font-size: 1rem;
+    color: var(--dark);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.account-popup-email {
+    font-size: 0.85rem;
+    color: #6b7280;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Divider */
+.account-popup-divider {
+    height: 1px;
+    background: var(--border);
+    margin: 8px 0;
+}
+
+/* Menu items */
+.account-popup-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 20px;
+    color: var(--dark);
+    text-decoration: none;
+    transition: background 0.15s ease;
+    font-size: 0.95rem;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.account-popup-item:hover {
+    background: var(--light);
+}
+
+.account-popup-item svg:first-child {
+    flex-shrink: 0;
+    opacity: 0.7;
+}
+
+.account-popup-item span {
+    flex: 1;
+}
+
+/* Keyboard shortcut hint */
+.account-popup-shortcut {
+    font-size: 0.8rem;
+    color: #9ca3af;
+    font-weight: 400;
+    margin-left: auto;
+    flex: none;
+}
+
+/* Chevron for submenu items */
+.account-popup-chevron {
+    flex-shrink: 0;
+    opacity: 0.4;
+    margin-left: auto;
+}
+
+/* Footer (sticky at bottom) */
+.account-popup-footer {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px 20px;
+    background: var(--light);
+    border-top: 1px solid var(--border);
+    position: sticky;
+    bottom: 0;
+}
+
+.account-popup-footer-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 0.9rem;
+    flex-shrink: 0;
+}
+
+.account-popup-footer-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.account-popup-footer-name {
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--dark);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.account-popup-footer-plan {
+    font-size: 0.8rem;
+    color: #6b7280;
+}
+
+.account-popup-footer-toggle {
+    width: 32px;
+    height: 32px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+
+.account-popup-footer-toggle:hover {
+    background: var(--light);
+}
+
+/* Mobile adjustments */
+@media (max-width: 768px) {
+    .account-popup {
+        left: 50%;
+        transform: translateX(-50%) translateY(10px) scale(0.95);
+        width: calc(100vw - 32px);
+        max-width: 380px;
+    }
+    
+    .account-popup[aria-hidden="false"] {
+        transform: translateX(-50%) translateY(0) scale(1);
+    }
+}
+
+/* When sidebar is expanded */
+@media (min-width: 769px) {
+    .app-shell.expanded .account-popup {
+        left: calc(var(--sidebar-expanded) + 12px);
+    }
+}
+
+/* ========================================
    APP SHELL GRID (Sidebar | Content)
    ======================================== */
 .app-shell {

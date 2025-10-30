@@ -29,6 +29,34 @@
         </span>
         <span class="nav-label">New chat</span>
       </button>
+
+      <!-- SPACER: pushes account to bottom -->
+      <div style="flex: 1;"></div>
+
+      <!-- Row 3: Account Button -->
+      <% if (typeof user !== 'undefined' && user) { %>
+        <button 
+          id="account-trigger" 
+          class="rail-btn account-btn" 
+          title="Account" 
+          aria-label="Account menu" 
+          aria-haspopup="true" 
+          aria-expanded="false" 
+          type="button">
+          <div class="account-avatar">
+            <%= user.username.charAt(0).toUpperCase() %>
+          </div>
+        </button>
+      <% } else { %>
+        <!-- Not logged in: Sign In button -->
+        <a href="/login" class="rail-btn account-btn" title="Sign in" aria-label="Sign in">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
+            <polyline points="10 17 15 12 10 7"/>
+            <line x1="15" y1="12" x2="3" y2="12"/>
+          </svg>
+        </a>
+      <% } %>
     </div>
 
     <!-- Expanding Panel -->
@@ -68,9 +96,104 @@
         </div>
       </div>
 
-      <div class="sidebar-footer">
-        <button id="import-btn" class="btn btn-secondary btn-sm" type="button">Settings</button>
-      </div>
+      <!-- Footer removed - Settings moved to account menu -->
     </div>
   </div>
 </aside>
+
+<!-- Account Popup Menu (ChatGPT-style) -->
+<% if (typeof user !== 'undefined' && user) { %>
+<div class="account-popup" id="account-popup" role="menu" aria-hidden="true">
+  <!-- User Info Header -->
+  <div class="account-popup-header">
+    <div class="account-popup-avatar">
+      <%= user.username.charAt(0).toUpperCase() %>
+    </div>
+    <div class="account-popup-info">
+      <div class="account-popup-name"><%= user.username %></div>
+      <div class="account-popup-email"><%= user.email %></div>
+    </div>
+  </div>
+
+  <div class="account-popup-divider"></div>
+
+  <!-- Menu Items -->
+  <a href="#" class="account-popup-item" id="menu-settings" role="menuitem">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <circle cx="12" cy="12" r="3"/>
+      <path d="M12 1v6m0 6v6"/>
+      <path d="M21 12h-6m-6 0H3"/>
+    </svg>
+    <span>Settings</span>
+    <span class="account-popup-shortcut">⌘+,</span>
+  </a>
+
+  <a href="#" class="account-popup-item" id="menu-language" role="menuitem">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <circle cx="12" cy="12" r="10"/>
+      <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+    </svg>
+    <span>Language</span>
+    <svg class="account-popup-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <polyline points="9 18 15 12 9 6"/>
+    </svg>
+  </a>
+
+  <a href="#" class="account-popup-item" id="menu-help" role="menuitem">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <circle cx="12" cy="12" r="10"/>
+      <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+      <line x1="12" y1="17" x2="12.01" y2="17"/>
+    </svg>
+    <span>Get help</span>
+  </a>
+
+  <div class="account-popup-divider"></div>
+
+  <a href="#" class="account-popup-item" id="menu-upgrade" role="menuitem">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <circle cx="12" cy="12" r="10"/>
+      <path d="M12 16v-4m0-4h.01"/>
+    </svg>
+    <span>Upgrade plan</span>
+  </a>
+
+  <a href="#" class="account-popup-item" id="menu-learn" role="menuitem">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+      <path d="M2 17l10 5 10-5M2 12l10 5 10-5"/>
+    </svg>
+    <span>Learn more</span>
+    <svg class="account-popup-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <polyline points="9 18 15 12 9 6"/>
+    </svg>
+  </a>
+
+  <div class="account-popup-divider"></div>
+
+  <a href="/logout" class="account-popup-item" role="menuitem">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+      <polyline points="16 17 21 12 16 7"/>
+      <line x1="21" y1="12" x2="9" y2="12"/>
+    </svg>
+    <span>Log out</span>
+  </a>
+
+  <!-- Bottom User Info (visible when scrolled) -->
+  <div class="account-popup-footer">
+    <div class="account-popup-footer-avatar">
+      <%= user.username.charAt(0).toUpperCase() %>
+    </div>
+    <div class="account-popup-footer-info">
+      <div class="account-popup-footer-name"><%= user.username %></div>
+      <div class="account-popup-footer-plan">Free plan</div>
+    </div>
+    <button class="account-popup-footer-toggle" aria-label="Close menu">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <polyline points="18 15 12 9 6 15"/>
+      </svg>
+    </button>
+  </div>
+</div>
+<% } %>
