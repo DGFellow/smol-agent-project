@@ -11,14 +11,15 @@ from src.agents.chat_agent import ChatAgent
 from src.agents.router_agent import RouterAgent, LanguageDetectorAgent
 from src.utils.text_processor import TextProcessor
 from src.utils.logger import AgentLogger
-from src.utils.memory import ConversationMemory  # Keep for backward compatibility
+from src.utils.memory import ConversationMemory
+from src.utils.title_generator import generate_title_from_message, generate_title_with_llm
 
-# Database imports (NEW)
+# Database imports
 from src.database.db import Database
 from src.database.user import User
 from src.database.conversation import Conversation
 
-# Auth imports (NEW)
+# Auth imports
 from src.routes import auth
 from src.middleware.auth import token_required
 
@@ -33,11 +34,11 @@ CORS(app, resources={
     }
 })
 
-# Initialize database (NEW)
+# Initialize database
 db_manager = Database()
 db = db_manager.connect()
 
-# Initialize database models (NEW)
+# Initialize database models
 user_model = User(db)
 conversation_model = Conversation(db)
 
@@ -48,7 +49,7 @@ sessions = {}
 
 # Utilities
 logger = AgentLogger()
-memory = ConversationMemory()  # Keep for backward compatibility
+memory = ConversationMemory()
 
 # Performance tracking
 request_count = 0
@@ -86,7 +87,7 @@ except Exception as e:
     app.logger.exception("Model initialization failed: %s", e)
 
 # ============================================
-# AUTH ROUTES (NEW)
+# AUTH ROUTES
 # ============================================
 
 @app.route('/api/auth/register', methods=['POST'])
@@ -124,22 +125,20 @@ def health():
     })
 
 # ============================================
-# PROTECTED MESSAGE ENDPOINT (UPDATED)
+# PROTECTED MESSAGE ENDPOINT
 # ============================================
 
 @app.route('/api/message', methods=['POST'])
-@token_required  # NEW: Requires authentication
+@token_required
 def unified_message():
-    """Unified message endpoint with authentication"""
+    """Unified message endpoint with authentication and auto-generated titles"""
     global request_count, total_response_time
     start_time = time.time()
     
-    # Get authenticated user (NEW)
     user_id = request.user_id
-    
     data = request.json
     message = data.get('message', '').strip()
-    conversation_id = data.get('conversation_id')  # NEW: Can specify conversation
+    conversation_id = data.get('conversation_id')
     
     if not message:
         return jsonify({"error": "No message provided"}), 400
@@ -150,20 +149,31 @@ def unified_message():
     # Check token count
     token_count = TextProcessor.count_tokens_estimate(message)
     if token_count > 2000:
-        return jsonify({"error": "Message too long. Please shorten your request."}), 400
+        return jsonify({"error": "Message too long"}), 400
     
     try:
-        # Get or create conversation (NEW)
+        # Get or create conversation with auto-generated title
+        is_new_conversation = False
+        conversation_title = None
+        
         if not conversation_id:
-            conv = conversation_model.create_conversation(user_id)
+            # Generate title from first message
+            title = generate_title_from_message(message)
+            # OR use LLM (more sophisticated but slower):
+            # title = generate_title_with_llm(models['instruct'][0], models['instruct'][1], message)
+            
+            conv = conversation_model.create_conversation(user_id, title=title)
             conversation_id = conv['id']
+            conversation_title = title
+            is_new_conversation = True
         else:
-            # Verify conversation ownership (NEW)
+            # Verify conversation ownership
             conv = conversation_model.get_by_id(conversation_id)
             if not conv or conv['user_id'] != user_id:
                 return jsonify({"error": "Unauthorized"}), 403
+            conversation_title = conv['title']
         
-        # Save user message to database (NEW)
+        # Save user message to database
         conversation_model.add_message(conversation_id, 'user', message)
         
         # Session management for stateful operations
@@ -178,6 +188,11 @@ def unified_message():
         
         # Log request
         logger.log_request(message, "routing", f"user_{user_id}")
+        
+        # Initialize response variables
+        result = None
+        agent_type = None
+        model_used = None
         
         # Handle language specification for code
         if session.get('waiting_for_language'):
@@ -216,7 +231,7 @@ def unified_message():
                 
                 logger.log_response(result['response'], "chat", f"user_{user_id}")
         
-        # Save assistant response to database (NEW)
+        # Save assistant response to database
         conversation_model.add_message(
             conversation_id, 
             'assistant', 
@@ -233,10 +248,12 @@ def unified_message():
         
         return jsonify({
             "response": result['response'],
-            "conversation_id": conversation_id,  # NEW: Return conversation ID
+            "conversation_id": conversation_id,
+            "is_new_conversation": is_new_conversation,
+            "conversation_title": conversation_title,
             "agent_used": agent_type,
             "model": model_used,
-            "needs_language": result.get('needs_language', False)  # Keep for UI compatibility
+            "needs_language": result.get('needs_language', False)
         })
     
     except Exception as e:
@@ -244,7 +261,7 @@ def unified_message():
         return jsonify({"error": str(e)}), 500
 
 # ============================================
-# CONVERSATION MANAGEMENT (NEW)
+# CONVERSATION MANAGEMENT
 # ============================================
 
 @app.route('/api/conversations', methods=['GET'])
@@ -343,8 +360,6 @@ def clear_history():
 @token_required
 def save_conversation():
     """Save conversation (deprecated - now auto-saved)"""
-    # This endpoint is kept for backward compatibility but does nothing
-    # Conversations are now automatically saved to database
     return jsonify({
         "status": "success",
         "message": "Conversations are now automatically saved"

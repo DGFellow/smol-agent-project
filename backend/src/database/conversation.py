@@ -63,22 +63,55 @@ class Conversation:
             return dict(zip(['id', 'user_id', 'title', 'created_at', 'updated_at'], row))
         return None
     
-    def get_user_conversations(self, user_id: int, limit: int = 50) -> List[dict]:
-        """Get all conversations for a user"""
+    def get_user_conversations(self, user_id: int, limit: int = 50, offset: int = 0) -> List[dict]:
+        """Get all conversations for a user with pagination"""
         cursor = self.db.execute(f'''
-            SELECT c.id, c.title, c.created_at, c.updated_at, 
-                   COUNT(m.id) as message_count
+            SELECT 
+                c.id, 
+                c.title, 
+                c.created_at, 
+                c.updated_at, 
+                COUNT(m.id) as message_count,
+                (SELECT m2.content 
+                FROM {self.messages_table} m2 
+                WHERE m2.conversation_id = c.id 
+                ORDER BY m2.created_at ASC 
+                LIMIT 1) as first_message
             FROM {self.table_name} c
             LEFT JOIN {self.messages_table} m ON c.id = m.conversation_id
             WHERE c.user_id = ?
             GROUP BY c.id
             ORDER BY c.updated_at DESC
-            LIMIT ?
-        ''', (user_id, limit))
+            LIMIT ? OFFSET ?
+        ''', (user_id, limit, offset))
         
         rows = cursor.fetchall()
-        return [dict(zip(['id', 'title', 'created_at', 'updated_at', 'message_count'], row)) 
-                for row in rows]
+        conversations = []
+        
+        for row in rows:
+            conv_id = row[0]
+            title = row[1]
+            created_at = row[2]
+            updated_at = row[3]
+            message_count = row[4]
+            first_message = row[5]
+            
+            # Generate preview from first message
+            preview = ""
+            if first_message:
+                preview = first_message[:60] + "..." if len(first_message) > 60 else first_message
+            
+            conversations.append({
+                'id': conv_id,
+                'session_id': str(conv_id),  # For frontend compatibility
+                'title': title or 'Untitled Conversation',
+                'created_at': created_at,
+                'updated_at': updated_at,
+                'message_count': message_count,
+                'preview': preview
+            })
+        
+        return conversations
     
     def add_message(self, conversation_id: int, role: str, content: str, 
                    agent: str = None, model: str = None) -> dict:

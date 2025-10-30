@@ -190,6 +190,7 @@ async function loadConversations() {
 
 function renderConversations() {
     if (!conversationList) return;
+    
     if (conversations.length === 0) {
         conversationList.innerHTML = `
             <div class="conversation-empty">
@@ -203,83 +204,122 @@ function renderConversations() {
     }
 
     conversationList.innerHTML = conversations.map(conv => {
-        const date = new Date(conv.created_at);
+        const date = new Date(conv.updated_at);
         const dateStr = formatDate(date);
-        const isActive = conv.session_id === currentConversationId;
+        const isActive = String(conv.id) === String(currentConversationId);
+        
         return `
-            <div class="conversation-item ${isActive ? 'active' : ''}" data-id="${conv.session_id}">
+            <div class="conversation-item ${isActive ? 'active' : ''}" data-id="${conv.id}">
                 <div class="conversation-item-header">
-                    <span class="conversation-title">Chat ${conv.session_id.slice(-8)}</span>
+                    <span class="conversation-title">${escapeHtml(conv.title)}</span>
                     <span class="conversation-date">${dateStr}</span>
                 </div>
-                <div class="conversation-preview">${conv.message_count} messages</div>
-                <button class="conversation-delete" data-id="${conv.session_id}">×</button>
+                <div class="conversation-preview">${escapeHtml(conv.preview || '')}</div>
+                <div class="conversation-actions">
+                    <button class="conversation-export" title="Export" aria-label="Export conversation" data-id="${conv.id}">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                            <path d="M12 5v10M12 5l-4 4M12 5l4 4M4 19h16" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </button>
+                    <button class="conversation-delete" title="Delete" aria-label="Delete conversation" data-id="${conv.id}">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                            <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                    </button>
+                </div>
             </div>
         `;
     }).join('');
 
+    // Attach event listeners
     document.querySelectorAll('.conversation-item').forEach(item => {
         item.addEventListener('click', (e) => {
-            if (!e.target.classList.contains('conversation-delete')) {
+            if (!e.target.closest('.conversation-actions')) {
                 loadConversation(item.dataset.id);
             }
         });
     });
 
     document.querySelectorAll('.conversation-delete').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            await deleteConversation(btn.dataset.id);
+        });
+    });
+    
+    document.querySelectorAll('.conversation-export').forEach(btn => {
         btn.addEventListener('click', (e) => {
             e.stopPropagation();
-            deleteConversation(btn.dataset.id);
+            exportConversation(btn.dataset.id);
         });
     });
 }
 
-function formatDate(date) {
-    const now = new Date();
-    const diffMs = now - date;
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
-
-    if (diffMins < 1) return 'Just now';
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
-    if (diffDays < 7) return `${diffDays}d ago`;
-    return date.toLocaleDateString();
-}
-
-async function loadConversation(sessionId) {
-    currentConversationId = sessionId;
-    SESSION_ID = sessionId;
-    chatMessages.innerHTML = '';
-    setStatus('Loaded conversation');
-    renderConversations();
-    closeSidebar();
-}
-
-async function deleteConversation(sessionId) {
-    if (!confirm('Delete this conversation?')) return;
+async function loadConversation(conversationId) {
     try {
-        conversations = conversations.filter(c => c.session_id !== sessionId);
-        renderConversations();
-        if (sessionId === currentConversationId) {
-            startNewChat();
+        const response = await fetch(`/api/conversations/${conversationId}`);
+        const data = await response.json();
+        
+        if (response.ok && data.conversation) {
+            currentConversationId = conversationId;
+            SESSION_ID = conversationId; // Use conversation ID as session
+            
+            // Clear and reload messages
+            chatMessages.innerHTML = '';
+            
+            const messages = data.conversation.messages || [];
+            messages.forEach(msg => {
+                addMessage(msg.content, msg.role);
+            });
+            
+            setStatus('Ready');
+            renderConversations(); // Update active state
+            closeSidebar();
+        }
+    } catch (error) {
+        console.error('Error loading conversation:', error);
+        setStatus('Error loading conversation', 'error');
+    }
+}
+
+async function deleteConversation(conversationId) {
+    if (!confirm('Delete this conversation?')) return;
+    
+    try {
+        const response = await fetch(`/api/conversations/${conversationId}`, {
+            method: 'DELETE'
+        });
+        
+        if (response.ok) {
+            // Remove from local array
+            conversations = conversations.filter(c => String(c.id) !== String(conversationId));
+            renderConversations();
+            
+            // If deleting current conversation, start new one
+            if (String(conversationId) === String(currentConversationId)) {
+                startNewChat();
+            }
         }
     } catch (error) {
         console.error('Error deleting conversation:', error);
     }
 }
 
+function exportConversation(conversationId) {
+    // TODO: Implement export
+    alert('Export conversation\n\nFormats:\n• Markdown\n• JSON\n• PDF (coming soon)');
+}
+
 function startNewChat() {
-    SESSION_ID = 'session_' + Date.now();
-    currentConversationId = SESSION_ID;
+    // Generate temporary session ID until first message is sent
+    SESSION_ID = null; // Will be created on first message
+    currentConversationId = null;
     chatMessages.innerHTML = '';
     setStatus('Ready');
     addMessage(TIP_HTML, 'assistant', { html: true });
     renderConversations();
     closeSidebar();
 }
-
 /* =========================
    Chat functions
    ========================= */
@@ -351,7 +391,7 @@ async function sendMessage() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 message: message,
-                session_id: SESSION_ID,
+                conversation_id: currentConversationId, // Use current conversation ID
             }),
         });
 
@@ -365,10 +405,18 @@ async function sendMessage() {
         if (response.ok) {
             const reply = (data && (data.response ?? data.text)) ?? '';
             replaceAssistantMessage(thinkingNode, reply);
+            
+            // Update current conversation ID if it's a new conversation
+            if (data.conversation_id) {
+                currentConversationId = data.conversation_id;
+                SESSION_ID = data.conversation_id;
+            }
+            
+            // Reload conversations list to show new/updated conversation
+            await loadConversations();
+            
             if (data.needs_language) setStatus('Specify language', 'ready');
             else setStatus('Ready');
-
-            await autoSaveConversation();
         } else {
             const err = (data && (data.error || data.message)) || 'Request failed';
             replaceAssistantMessage(thinkingNode, `Error: ${err}`);
