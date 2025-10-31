@@ -45,3 +45,4 @@ langgraph
 llama-index
 langchain-huggingface
 llama-index-embeddings-huggingface
+langchain-community
