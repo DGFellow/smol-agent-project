@@ -47,11 +47,10 @@ langchain-huggingface
 llama-index-embeddings-huggingface
 langchain-community
 
-# Enhanced Authentication
+# Enhanced Authentication & Optional: OAuth
 email-validator>=2.1.0
+authlib>=1.2.1
 # Optional: SMS 2FA (uncomment if needed)
-# twilio>=8.10.0
+twilio>=8.10.0
 
-# Optional: OAuth (uncomment if needed)
-# authlib>=1.2.1
-# requests>=2.31.0
+ 
