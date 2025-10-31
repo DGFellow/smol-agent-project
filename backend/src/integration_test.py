@@ -15,7 +15,7 @@ print("LangChain version:", langchain.__version__)
 
 # Load your Qwen model and tokenizer using ModelLoader class
 from transformers import pipeline
-from src.models.model_loader import ModelLoader
+from models.model_loader import ModelLoader
 
 loader = ModelLoader()
 model, tokenizer = loader.load_qwen_instruct()  # Returns tuple (model, tokenizer)
