@@ -1,8 +1,7 @@
 # Basic integration test for LangChain, LangGraph, LlamaIndex with Qwen models
 
 from langchain_huggingface import HuggingFacePipeline
-from langchain.prompts import PromptTemplate
-from langchain.chains import LLMChain
+from langchain_core.prompts import PromptTemplate
 
 from langgraph.graph import StateGraph, END
 from typing import TypedDict, Annotated
@@ -11,13 +10,15 @@ import operator
 from llama_index.core import VectorStoreIndex, SimpleDirectoryReader
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 
-# Load your Qwen model and tokenizer (adjust if load_model returns something else)
-from transformers import AutoTokenizer, pipeline
-from src.models.model_loader import load_model
+import langchain
+print("LangChain version:", langchain.__version__)
 
-model_path = 'Qwen/Qwen2.5-3B-Instruct'  # Matches your cache
-model = load_model(model_path)
-tokenizer = AutoTokenizer.from_pretrained(model_path)
+# Load your Qwen model and tokenizer using ModelLoader class
+from transformers import pipeline
+from src.models.model_loader import ModelLoader
+
+loader = ModelLoader()
+model, tokenizer = loader.load_qwen_instruct()  # Returns tuple (model, tokenizer)
 
 # Wrap in transformers pipeline for LangChain
 pipe = pipeline(
@@ -29,10 +30,10 @@ pipe = pipeline(
 )
 llm = HuggingFacePipeline(pipeline=pipe)
 
-# --- LangChain Example: Simple Chain ---
+# --- LangChain Example: Simple Chain (using LCEL instead of deprecated LLMChain) ---
 prompt = PromptTemplate.from_template("Tell me a joke about {topic}.")
-chain = LLMChain(llm=llm, prompt=prompt)
-print("LangChain Test:", chain.run(topic="AI"))
+chain = prompt | llm  # LCEL syntax: pipe prompt to LLM
+print("LangChain Test:", chain.invoke({"topic": "AI"}))
 
 # --- LangGraph Example: Simple Stateful Graph ---
 class State(TypedDict):
