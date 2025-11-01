@@ -14,6 +14,7 @@ from langchain.tools import Tool
 from src.tools.calculator import Calculator
 from src.tools.web_search import WebSearch
 from src.tools.code_executor import CodeExecutor
+from src.tools.document_search import create_document_search_tool
 
 
 def _summarize_search(results: List[Dict[str, str]]) -> str:
@@ -82,8 +83,14 @@ class QwenAgent:
                 "Performs basic safety checks; returns stdout or error."
             ),
         )
-
-        self.tools = [calculator_tool, search_tool, executor_tool]
+        # ---------- NEW: Document Search (RAG) ----------
+        try:
+            doc_search_tool = create_document_search_tool()
+            self.tools = [calculator_tool, search_tool, executor_tool, doc_search_tool]
+            print("✅ Document search tool added to agent")
+        except Exception as e:
+            print(f"⚠️  Could not load document search tool: {e}")
+            self.tools = [calculator_tool, search_tool, executor_tool]
 
     def _create_agent(self):
         """
