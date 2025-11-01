@@ -65,3 +65,6 @@ conversations/
 # OS
 .DS_Store
 Thumbs.db
+# RAG data
+data/documents/*
+data/vector_store/*
