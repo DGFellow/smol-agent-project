@@ -3,11 +3,18 @@ const session = require('express-session');
 const cookieParser = require('cookie-parser');
 const axios = require('axios');
 const path = require('path');
+const { createProxyMiddleware } = require('http-proxy-middleware');
 require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:5001';
+
+// Proxy for /api routes
+app.use('/api', createProxyMiddleware({
+    target: BACKEND_URL,
+    changeOrigin: true
+}));
 
 // Middleware
 app.use(express.json());
