@@ -124,6 +124,30 @@ app.post('/api/auth/login', async (req, res) => {
     }
 });
 
+app.post('/api/auth/check-username', async (req, res) => {
+    try {
+        const response = await axios.post(`${BACKEND_URL}/api/auth/check-username`, req.body);
+        res.json(response.data);
+    } catch (error) {
+        console.error('Check username error:', error.response?.data); // DEBUG
+        res.status(error.response?.status || 500).json({ 
+            error: error.response?.data?.error || 'Username check failed' 
+        });
+    }
+});
+
+app.post('/api/auth/check-email', async (req, res) => {
+    try {
+        const response = await axios.post(`${BACKEND_URL}/api/auth/check-email`, req.body);
+        res.json(response.data);
+    } catch (error) {
+        console.error('Check email error:', error.response?.data); // DEBUG
+        res.status(error.response?.status || 500).json({ 
+            error: error.response?.data?.error || 'Email check failed' 
+        });
+    }
+});
+
 // Protected API endpoints
 app.post('/api/message', requireAuth, async (req, res) => {
     console.log('Sending message with token:', req.session.token ? 'YES' : 'NO'); // DEBUG
@@ -221,6 +245,14 @@ app.post('/api/save', requireAuth, async (req, res) => {
             error: error.response?.data?.error || 'Backend error' 
         });
     }
+});
+
+// email route
+app.get('/verify-email/:token', (req, res) => {
+  res.render('verify-email', { 
+    title: 'Verify Email',
+    token: req.params.token 
+  });
 });
 
 // Proxy for /api routes
