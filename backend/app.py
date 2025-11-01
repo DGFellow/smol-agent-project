@@ -11,7 +11,7 @@ import shutil
 # Safe to import even if you keep legacy only; guarded by try/except in initialize_models()
 from src.langchain_integration.chains import qwen_lc
 from src.langchain_integration.agent import initialize_agent, get_router
-from src.langchain_integration.rag import get_rag_system
+from src.langchain_integration.rag import get_rag_system, initialize_rag
 
 # -------- Project imports - Legacy models (KEEP) ----------
 from src.models.model_loader import ModelLoader
