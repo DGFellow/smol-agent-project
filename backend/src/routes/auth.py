@@ -1,31 +1,13 @@
-from flask import Blueprint, request, jsonify
+# backend/src/routes/auth.py
+# Compatible with your existing app.py structure
+
+from flask import request, jsonify
 from src.database.user import User
-from src.middleware.auth import generate_token, decode_token, requires_auth
+from src.middleware.auth import generate_token, decode_token, check_rate_limit
 from src.utils.email_service import send_verification_email, send_2fa_code, send_password_reset_email
 from src.utils.sms_service import send_sms_code
-import re
 from datetime import datetime
 
-auth_bp = Blueprint('auth', __name__)
-
-# Rate limiting helper (you can implement Redis-based for production)
-from collections import defaultdict
-from time import time
-
-rate_limit_store = defaultdict(list)
-
-def check_rate_limit(key: str, max_attempts: int = 5, window: int = 300) -> bool:
-    """Simple in-memory rate limiting (use Redis in production)"""
-    now = time()
-    rate_limit_store[key] = [t for t in rate_limit_store[key] if now - t < window]
-    
-    if len(rate_limit_store[key]) >= max_attempts:
-        return False
-    
-    rate_limit_store[key].append(now)
-    return True
-
-@auth_bp.route('/check-username', methods=['POST'])
 def check_username(db):
     """Check if username is available"""
     data = request.json
@@ -47,7 +29,6 @@ def check_username(db):
         'message': 'Username already taken' if exists else 'Username is available'
     }), 200
 
-@auth_bp.route('/check-email', methods=['POST'])
 def check_email(db):
     """Check if email is available"""
     data = request.json
@@ -69,7 +50,6 @@ def check_email(db):
         'message': 'Email already registered' if exists else 'Email is available'
     }), 200
 
-@auth_bp.route('/register', methods=['POST'])
 def register(db):
     """Register a new user with full profile"""
     data = request.json
@@ -145,7 +125,6 @@ def register(db):
         try:
             send_verification_email(email, username, verification_token)
         except Exception as e:
-            # Log error but don't fail registration
             print(f"Failed to send verification email: {e}")
         
         # Generate auth token
@@ -168,7 +147,6 @@ def register(db):
         print(f"Registration error: {e}")
         return jsonify({'error': 'Registration failed. Please try again.'}), 500
 
-@auth_bp.route('/verify-email/<token>', methods=['GET'])
 def verify_email(db, token):
     """Verify email with token"""
     try:
@@ -186,8 +164,6 @@ def verify_email(db, token):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@auth_bp.route('/resend-verification', methods=['POST'])
-@requires_auth
 def resend_verification(db, current_user):
     """Resend email verification"""
     try:
@@ -214,7 +190,6 @@ def resend_verification(db, current_user):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@auth_bp.route('/login', methods=['POST'])
 def login(db):
     """Login user with optional 2FA"""
     data = request.json
@@ -241,16 +216,16 @@ def login(db):
         user = user_model.get_by_username(username)
         
         # Check if account is active
-        if user['account_status'] != 'active':
+        if user.get('account_status') != 'active':
             return jsonify({'error': 'Account is suspended or inactive'}), 403
         
         # Check if 2FA is enabled
-        if user['two_factor_enabled']:
+        if user.get('two_factor_enabled'):
             if not two_factor_code:
                 # Generate and send 2FA code
                 code = user_model.create_2fa_code(user['id'])
                 
-                if user['two_factor_method'] == 'sms' and user['phone_number']:
+                if user.get('two_factor_method') == 'sms' and user.get('phone_number'):
                     send_sms_code(user['phone_number'], code)
                 else:
                     # Fallback to email
@@ -258,7 +233,7 @@ def login(db):
                 
                 return jsonify({
                     'requires_2fa': True,
-                    'method': user['two_factor_method'],
+                    'method': user.get('two_factor_method'),
                     'message': 'Verification code sent. Please check your phone/email.'
                 }), 200
             else:
@@ -279,10 +254,10 @@ def login(db):
                 'id': user['id'],
                 'username': user['username'],
                 'email': user['email'],
-                'first_name': user['first_name'],
-                'last_name': user['last_name'],
-                'email_verified': user['email_verified'],
-                'two_factor_enabled': user['two_factor_enabled']
+                'first_name': user.get('first_name'),
+                'last_name': user.get('last_name'),
+                'email_verified': user.get('email_verified'),
+                'two_factor_enabled': user.get('two_factor_enabled')
             }
         }), 200
     
@@ -290,86 +265,6 @@ def login(db):
         print(f"Login error: {e}")
         return jsonify({'error': 'Login failed. Please try again.'}), 500
 
-@auth_bp.route('/oauth/<provider>', methods=['POST'])
-def oauth_login(db, provider):
-    """OAuth login (Google, GitHub, etc.)"""
-    data = request.json
-    oauth_token = data.get('oauth_token')
-    oauth_user_data = data.get('user_data')  # From OAuth provider
-    
-    if not oauth_token or not oauth_user_data:
-        return jsonify({'error': 'Invalid OAuth data'}), 400
-    
-    try:
-        user_model = User(db)
-        
-        # Verify OAuth token with provider (implement provider-specific verification)
-        # This is a simplified version - implement actual OAuth verification
-        provider_id = oauth_user_data.get('id')
-        email = oauth_user_data.get('email')
-        username = oauth_user_data.get('username') or email.split('@')[0]
-        
-        # Check if user exists with OAuth
-        user = user_model.get_by_oauth(provider, provider_id)
-        
-        if not user:
-            # Check if email exists
-            user = user_model.get_by_email(email)
-            
-            if user:
-                # Link OAuth to existing account
-                # (In production, ask user to confirm this action)
-                pass
-            else:
-                # Create new user with OAuth
-                # Ensure username is unique
-                base_username = username
-                counter = 1
-                while user_model.username_exists(username):
-                    username = f"{base_username}{counter}"
-                    counter += 1
-                
-                user = user_model.create_user(
-                    username=username,
-                    email=email,
-                    password=None,  # No password for OAuth users
-                    first_name=oauth_user_data.get('given_name'),
-                    last_name=oauth_user_data.get('family_name'),
-                    oauth_provider=provider,
-                    oauth_provider_id=provider_id
-                )
-                
-                # OAuth emails are pre-verified
-                user_model.db.execute(
-                    'UPDATE users SET email_verified = 1 WHERE id = ?',
-                    (user['id'],)
-                )
-                user_model.db.commit()
-        
-        # Update last login
-        user_model.update_last_login(user['id'])
-        
-        # Generate token
-        token = generate_token(user['id'], user['username'])
-        
-        return jsonify({
-            'message': 'OAuth login successful',
-            'token': token,
-            'user': {
-                'id': user['id'],
-                'username': user['username'],
-                'email': user['email'],
-                'first_name': user['first_name'],
-                'last_name': user['last_name'],
-                'email_verified': True
-            }
-        }), 200
-    
-    except Exception as e:
-        print(f"OAuth error: {e}")
-        return jsonify({'error': 'OAuth login failed'}), 500
-
-@auth_bp.route('/forgot-password', methods=['POST'])
 def forgot_password(db):
     """Request password reset"""
     data = request.json
@@ -401,7 +296,6 @@ def forgot_password(db):
     except Exception as e:
         return jsonify({'error': 'Password reset request failed'}), 500
 
-@auth_bp.route('/reset-password/<token>', methods=['POST'])
 def reset_password(db, token):
     """Reset password with token"""
     data = request.json
@@ -435,7 +329,6 @@ def reset_password(db, token):
     except Exception as e:
         return jsonify({'error': 'Password reset failed'}), 500
 
-@auth_bp.route('/verify', methods=['GET'])
 def verify_token():
     """Verify if token is valid"""
     auth_header = request.headers.get('Authorization')
@@ -460,12 +353,10 @@ def verify_token():
     except Exception as e:
         return jsonify({'error': str(e)}), 401
 
-@auth_bp.route('/enable-2fa', methods=['POST'])
-@requires_auth
 def enable_2fa(db, current_user):
     """Enable 2FA for user"""
     data = request.json
-    method = data.get('method', 'sms')  # 'sms' or 'email'
+    method = data.get('method', 'sms')
     phone_number = data.get('phone_number')
     
     if method not in ['sms', 'email']:
@@ -477,7 +368,7 @@ def enable_2fa(db, current_user):
         
         if method == 'sms':
             if not phone_number:
-                if not user['phone_number']:
+                if not user.get('phone_number'):
                     return jsonify({'error': 'Phone number required for SMS 2FA'}), 400
                 phone_number = user['phone_number']
             else:
@@ -497,8 +388,6 @@ def enable_2fa(db, current_user):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@auth_bp.route('/disable-2fa', methods=['POST'])
-@requires_auth
 def disable_2fa(db, current_user):
     """Disable 2FA for user"""
     try:
