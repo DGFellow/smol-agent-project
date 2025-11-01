@@ -7,7 +7,7 @@ import os
 
 # Adjust these
 BASE_URL = "http://localhost:5001"
-TOKEN = "YOUR_TOKEN_HERE"  # Get from login
+TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxLCJ1c2VybmFtZSI6IkRvbSIsImV4cCI6MTc2MjA2ODc5NywiaWF0IjoxNzYxOTgyMzk3fQ.DDsqEQgQE_27I9QBjnJs7WvnWy0GpJDTBMO5_BYiQIs"  # Get from login
 
 def test_upload():
     """Test uploading a file"""
