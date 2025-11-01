@@ -484,7 +484,7 @@
             usernameValidation.innerHTML = '<span class="loading"></span> Checking availability...';
 
             try {
-                const response = await fetch('/api/auth/check-username', {
+                const response = await fetch('http://localhost:5001/api/auth/check-username', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ username })
@@ -528,7 +528,7 @@
             emailValidation.innerHTML = '<span class="loading"></span> Checking availability...';
 
             try {
-                const response = await fetch('/api/auth/check-email', {
+                const response = await fetch('http://localhost:5001/api/auth/check-email', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ email })
@@ -679,7 +679,7 @@
             submitBtn.innerHTML = '<span class="loading"></span> Creating account...';
 
             try {
-                const response = await fetch('/api/auth/register', {
+                const response = await fetch('http://localhost:5001/api/auth/register', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(formData)
