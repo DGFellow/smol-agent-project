@@ -6,14 +6,16 @@ interface AppState {
   viewMode: ViewMode
   sidebarExpanded: boolean
   currentConversationId: number | null
-  
+
   // Loading states
   isThinking: boolean
-  
+
   // Actions
   setViewMode: (mode: ViewMode) => void
   setSidebarExpanded: (expanded: boolean) => void
   toggleSidebar: () => void
+  openSidebar: () => void
+  closeSidebar: () => void
   setCurrentConversationId: (id: number | null) => void
   setThinking: (thinking: boolean) => void
   resetToHero: () => void
@@ -28,16 +30,19 @@ export const useAppStore = create<AppState>((set) => ({
 
   // Actions
   setViewMode: (mode) => set({ viewMode: mode }),
-  
+
   setSidebarExpanded: (expanded) => set({ sidebarExpanded: expanded }),
-  
+
   toggleSidebar: () =>
     set((state) => ({ sidebarExpanded: !state.sidebarExpanded })),
-  
+
+  openSidebar: () => set({ sidebarExpanded: true }),
+  closeSidebar: () => set({ sidebarExpanded: false }),
+
   setCurrentConversationId: (id) => set({ currentConversationId: id }),
-  
+
   setThinking: (thinking) => set({ isThinking: thinking }),
-  
+
   resetToHero: () =>
     set({
       viewMode: 'hero',

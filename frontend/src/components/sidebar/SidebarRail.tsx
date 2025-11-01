@@ -16,7 +16,7 @@ const IconButton: React.FC<
   </button>
 )
 
-const SidebarRail: React.FC = () => {
+const SidebarRailComponent: React.FC = () => {
   const sidebarExpanded = useAppStore((s) => s.sidebarExpanded)
   const toggleSidebar = useAppStore((s) => s.toggleSidebar)
 
@@ -55,4 +55,6 @@ const SidebarRail: React.FC = () => {
   )
 }
 
-export default SidebarRail
+// Provide both exports to satisfy any import style
+export const SidebarRail = SidebarRailComponent
+export default SidebarRailComponent

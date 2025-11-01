@@ -1,6 +1,7 @@
 import { useConversations } from '@/hooks/useConversations'
 import { ConversationList } from './ConversationList'
-import { Loader2 } from 'lucide-react'
+import { AccountButton } from './AccountButton'
+import { Loader2, MessageSquarePlus } from 'lucide-react'
 
 export function SidebarPanel() {
   const { conversations, isLoading } = useConversations({ limit: 50 })
@@ -16,13 +17,16 @@ export function SidebarPanel() {
           <div className="conversation-empty text-center py-12 px-4">
             <MessageSquarePlus className="w-12 h-12 mx-auto mb-4 text-gray-400" />
             <p className="text-gray-600">No conversations yet</p>
-            <p className="text-sm text-gray-500 mt-1">
-              Start a new chat to begin
-            </p>
+            <p className="text-sm text-gray-500 mt-1">Start a new chat to begin</p>
           </div>
         ) : (
           <ConversationList conversations={conversations} />
         )}
+      </div>
+
+      {/* Account button sits at the bottom by CSS in AccountButton */}
+      <div className="p-2">
+        <AccountButton />
       </div>
     </div>
   )
