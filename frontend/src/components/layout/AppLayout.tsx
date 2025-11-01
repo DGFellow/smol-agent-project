@@ -13,23 +13,18 @@ export function AppLayout() {
     <div className="min-h-screen flex flex-col">
       <div
         className={cn(
-          // Keep the base shell classes
           'app-shell grid transition-all duration-300',
-          // Add 'expanded' so index.css rules can open the panel
-          sidebarExpanded && 'expanded',
-          // Keep the responsive columns you already had
-          sidebarExpanded ? 'grid-cols-[280px_1fr]' : 'grid-cols-[56px_1fr]'
+          // index.css drives the actual widths based on this class
+          sidebarExpanded && 'expanded'
         )}
       >
         <Sidebar />
 
-        <div className="app-content flex flex-col min-w-0">
+        <div className="app-content">
           <Header />
-
           <main className="flex-1 flex flex-col">
             <Outlet />
           </main>
-
           <Footer />
         </div>
       </div>
