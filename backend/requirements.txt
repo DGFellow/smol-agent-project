@@ -58,3 +58,8 @@ twilio>=8.10.0
 # Rate Limiting (Production)
 redis>=5.0.0
 flask-limiter>=3.5.0
+# RAG & Vector Store
+llama-index-vector-stores-chroma==0.1.6
+pypdf==3.17.4
+python-docx==1.1.0
+python-magic==0.4.27
