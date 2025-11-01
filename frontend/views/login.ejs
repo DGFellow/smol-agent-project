@@ -68,7 +68,7 @@
                 });
                 
                 const data = await response.json();
-                
+                localStorage.setItem('token', data.token);
                 if (response.ok) {
                     window.location.href = '/';
                 } else {

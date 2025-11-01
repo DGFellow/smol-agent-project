@@ -10,12 +10,6 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:5001';
 
-// Proxy for /api routes
-app.use('/api', createProxyMiddleware({
-    target: BACKEND_URL,
-    changeOrigin: true
-}));
-
 // Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -38,6 +32,7 @@ app.use(session({
 
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
+app.set('view cache', false);
 
 // Auth middleware
 function requireAuth(req, res, next) {
@@ -227,6 +222,12 @@ app.post('/api/save', requireAuth, async (req, res) => {
         });
     }
 });
+
+// Proxy for /api routes
+app.use('/api', createProxyMiddleware({
+    target: BACKEND_URL,
+    changeOrigin: true
+}));
 
 app.listen(PORT, () => {
     console.log(`Frontend server running on http://localhost:${PORT}`);
