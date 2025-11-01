@@ -86,6 +86,8 @@ try:
 except Exception as e:
     app.logger.exception("Model initialization failed: %s", e)
 
+# Replace the AUTH ROUTES section with:
+
 # ============================================
 # AUTH ROUTES
 # ============================================
@@ -104,6 +106,49 @@ def login():
 def verify():
     """Verify JWT token"""
     return auth.verify_token()
+
+@app.route('/api/auth/check-username', methods=['POST'])
+def check_username():
+    """Check username availability"""
+    return auth.check_username(db)
+
+@app.route('/api/auth/check-email', methods=['POST'])
+def check_email():
+    """Check email availability"""
+    return auth.check_email(db)
+
+@app.route('/api/auth/verify-email/<token>', methods=['GET'])
+def verify_email(token):
+    """Verify email with token"""
+    return auth.verify_email(db, token)
+
+@app.route('/api/auth/resend-verification', methods=['POST'])
+@token_required
+def resend_verification():
+    """Resend email verification"""
+    return auth.resend_verification(db, {'user_id': request.user_id})
+
+@app.route('/api/auth/forgot-password', methods=['POST'])
+def forgot_password():
+    """Request password reset"""
+    return auth.forgot_password(db)
+
+@app.route('/api/auth/reset-password/<token>', methods=['POST'])
+def reset_password(token):
+    """Reset password with token"""
+    return auth.reset_password(db, token)
+
+@app.route('/api/auth/enable-2fa', methods=['POST'])
+@token_required
+def enable_2fa():
+    """Enable 2FA"""
+    return auth.enable_2fa(db, {'user_id': request.user_id})
+
+@app.route('/api/auth/disable-2fa', methods=['POST'])
+@token_required
+def disable_2fa():
+    """Disable 2FA"""
+    return auth.disable_2fa(db, {'user_id': request.user_id})
 
 # ============================================
 # HEALTH CHECK
