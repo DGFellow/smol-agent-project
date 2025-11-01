@@ -77,34 +77,36 @@ total_response_time = 0
 
 
 def initialize_models():
-    """
-    Load AI models and construct agents/chains.
-    Priority: LangChain -> fallback to legacy models.
-    """
+    """Load AI models and construct agents/chains"""
     print("Initializing AI models...")
     global models, agents, use_langchain
-
-    if models and agents and (use_langchain or 'router' in agents):
+    
+    if models and agents:
         return
 
+    # Choose initialization path
     if use_langchain:
         print("🔗 Using LangChain integration...")
         try:
-            # Boot LC wrappers
+            # Initialize LangChain wrapper
             qwen_lc.initialize()
-            # Build LC agent + tools
+            
+            # Initialize agent with tools
             initialize_agent(qwen_lc.instruct_llm, qwen_lc.chat_chain)
+            
+            # Initialize RAG system (NEW)
+            print("🔍 Initializing RAG system...")
+            initialize_rag()
+            print("✅ RAG system initialized!")
+            
             print("✅ LangChain system ready!")
-            # Register a sentinel so /api/health exposes something non-empty
-            models['langchain'] = ("Qwen2.5-3B-Instruct", None)
-            agents['langchain_agent'] = object()
-            return
         except Exception as e:
             print(f"❌ LangChain initialization failed: {e}")
-            print("Falling back to legacy system…")
+            print("Falling back to legacy system...")
             use_langchain = False
-
-    initialize_legacy_models()
+            initialize_legacy_models()
+    else:
+        initialize_legacy_models()
 
 
 def initialize_legacy_models():
