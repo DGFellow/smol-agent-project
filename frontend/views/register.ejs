@@ -688,13 +688,19 @@
                 const data = await response.json();
 
                 if (response.ok) {
+                    // Save token
                     localStorage.setItem('token', data.token);
-                    successDiv.className = 'success-message show';
-                    successDiv.textContent = data.message;
                     
-                    setTimeout(() => {
-                        window.location.href = '/';
-                    }, 2000);
+                    // Save user data for verification page
+                    localStorage.setItem('pendingVerification', JSON.stringify({
+                        email: data.user.email,
+                        username: data.user.username,
+                        email_verified: data.user.email_verified
+                    }));
+                    
+                    // Redirect to verification success page
+                    window.location.href = '/registration-success';
+                    
                 } else {
                     errorDiv.className = 'error-message show';
                     errorDiv.textContent = data.error || 'Registration failed';

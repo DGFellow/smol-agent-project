@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Registration Complete - Smolagent</title>
+    <link rel="stylesheet" href="/css/auth.css">
+    <style>
+        .success-container {
+            text-align: center;
+            padding: 40px 20px;
+        }
+        
+        .success-icon {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 30px;
+            font-size: 40px;
+            color: white;
+        }
+        
+        .email-icon {
+            font-size: 64px;
+            margin: 20px 0;
+        }
+        
+        .success-title {
+            color: #333;
+            font-size: 28px;
+            margin-bottom: 15px;
+        }
+        
+        .success-message {
+            color: #666;
+            font-size: 16px;
+            line-height: 1.6;
+            margin: 20px 0;
+        }
+        
+        .email-address {
+            background: #f0f0f0;
+            padding: 15px;
+            border-radius: 8px;
+            font-weight: 600;
+            color: #667eea;
+            margin: 20px 0;
+        }
+        
+        .instructions {
+            background: #fff8e1;
+            border-left: 4px solid #ffc107;
+            padding: 20px;
+            margin: 30px 0;
+            text-align: left;
+            border-radius: 4px;
+        }
+        
+        .instructions h3 {
+            margin-top: 0;
+            color: #f57c00;
+        }
+        
+        .instructions ol {
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+        
+        .instructions li {
+            margin: 8px 0;
+            color: #666;
+        }
+        
+        .btn-primary {
+            display: inline-block;
+            margin: 10px 5px;
+            padding: 14px 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            transition: transform 0.2s;
+            border: none;
+            cursor: pointer;
+            font-size: 15px;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+        }
+        
+        .btn-secondary {
+            background: #95a5a6;
+        }
+        
+        .btn-secondary:hover {
+            background: #7f8c8d;
+        }
+        
+        .resend-section {
+            margin-top: 30px;
+            padding-top: 30px;
+            border-top: 1px solid #e0e0e0;
+        }
+        
+        .resend-message {
+            color: #666;
+            font-size: 14px;
+            margin: 15px 0;
+        }
+        
+        .success-message {
+            color: #2ecc71;
+            font-weight: 600;
+        }
+        
+        .error-message {
+            color: #e74c3c;
+            font-weight: 600;
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #667eea;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="auth-container">
+        <div class="auth-card">
+            <div class="success-container">
+                <div class="success-icon">
+                    ✓
+                </div>
+                
+                <h1 class="success-title">Registration Complete!</h1>
+                
+                <div class="email-icon">📧</div>
+                
+                <p class="success-message">
+                    We've sent a verification email to:
+                </p>
+                
+                <div class="email-address" id="userEmail">
+                    Loading...
+                </div>
+                
+                <div class="instructions">
+                    <h3>📋 Next Steps:</h3>
+                    <ol>
+                        <li>Check your inbox (and spam folder)</li>
+                        <li>Open the email from <strong>Everythingagent</strong></li>
+                        <li>Click the "Verify Email" button</li>
+                        <li>Start using your account!</li>
+                    </ol>
+                </div>
+                
+                <p style="color: #999; font-size: 14px; margin: 20px 0;">
+                    The verification link will expire in 24 hours.
+                </p>
+                
+                <div style="margin-top: 30px;">
+                    <a href="/" class="btn-primary">Continue to Dashboard</a>
+                </div>
+                
+                <div class="resend-section">
+                    <p style="color: #666; font-size: 14px;">
+                        Didn't receive the email?
+                    </p>
+                    <button onclick="resendVerification()" class="btn-primary btn-secondary" id="resendBtn">
+                        Resend Verification Email
+                    </button>
+                    <div id="resendMessage" class="resend-message"></div>
+                </div>
+                
+                <div style="margin-top: 30px; padding-top: 30px; border-top: 1px solid #e0e0e0;">
+                    <p style="color: #666; font-size: 13px;">
+                        Already verified? <a href="/login" style="color: #667eea;">Login here</a>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Get user email from localStorage (set during registration)
+        const userData = JSON.parse(localStorage.getItem('pendingVerification') || '{}');
+        const userEmail = userData.email || 'your email';
+        
+        document.getElementById('userEmail').textContent = userEmail;
+        
+        // Resend verification function
+        async function resendVerification() {
+            const btn = document.getElementById('resendBtn');
+            const msg = document.getElementById('resendMessage');
+            const token = localStorage.getItem('token');
+            
+            if (!token) {
+                msg.className = 'resend-message error-message';
+                msg.textContent = 'Session expired. Please login again.';
+                setTimeout(() => {
+                    window.location.href = '/login';
+                }, 2000);
+                return;
+            }
+            
+            // Disable button
+            btn.disabled = true;
+            btn.innerHTML = '<span class="loading"></span> Sending...';
+            msg.textContent = '';
+            
+            try {
+                const response = await fetch('/api/auth/resend-verification', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    msg.className = 'resend-message success-message';
+                    msg.textContent = '✓ ' + data.message;
+                    
+                    // Re-enable button after 30 seconds
+                    setTimeout(() => {
+                        btn.disabled = false;
+                        btn.textContent = 'Resend Verification Email';
+                    }, 30000);
+                } else {
+                    msg.className = 'resend-message error-message';
+                    msg.textContent = '✗ ' + (data.error || 'Failed to resend email');
+                    btn.disabled = false;
+                    btn.textContent = 'Resend Verification Email';
+                }
+            } catch (error) {
+                msg.className = 'resend-message error-message';
+                msg.textContent = '✗ Network error. Please try again.';
+                btn.disabled = false;
+                btn.textContent = 'Resend Verification Email';
+            }
+        }
+        
+        // Auto-check if email is verified every 5 seconds
+        let checkInterval = setInterval(async () => {
+            const token = localStorage.getItem('token');
+            if (!token) return;
+            
+            try {
+                const response = await fetch('/api/auth/verify', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    // If verified, show success message
+                    // (This would require an additional endpoint to check verification status)
+                    // For now, user can just click "Continue to Dashboard"
+                }
+            } catch (error) {
+                // Silent fail
+            }
+        }, 5000);
+        
+        // Clear interval when leaving page
+        window.addEventListener('beforeunload', () => {
+            clearInterval(checkInterval);
+        });
+    </script>
+</body>
+</html>

@@ -67,6 +67,12 @@ app.get('/register', redirectIfAuth, (req, res) => {
     });
 });
 
+app.get('/registration-success', (req, res) => {
+  res.render('registration-success', { 
+    title: 'Registration Complete' 
+  });
+});
+
 app.get('/', requireAuth, (req, res) => {
     console.log('Rendering index, user:', req.session.user); // DEBUG
     res.render('index', { 
