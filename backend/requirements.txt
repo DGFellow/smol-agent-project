@@ -50,7 +50,10 @@ langchain-community
 # Enhanced Authentication & Optional: OAuth
 email-validator>=2.1.0
 authlib>=1.2.1
+
 # Optional: SMS 2FA (uncomment if needed)
 twilio>=8.10.0
 
- 
+# Rate Limiting (Production)
+redis>=5.0.0
+flask-limiter>=3.5.0
