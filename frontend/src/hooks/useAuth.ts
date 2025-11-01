@@ -1,91 +1,61 @@
-import { useMutation, useQuery } from '@tanstack/react-query'
-import { useNavigate } from 'react-router-dom'
-import { authApi, getErrorMessage } from '@/lib/api'
+import { useState, useCallback } from 'react'
+import { authApi } from '@/lib/api'
+import type { RegisterData, AuthResponse, FieldValidation } from '@/types'
 import { useAuthStore } from '@/store/authStore'
-import { queryClient, queryKeys } from '@/lib/queryClient'
-import type { LoginCredentials, RegisterData } from '@/types'
 
 export function useAuth() {
-  const navigate = useNavigate()
-  const { login: setAuth, logout: clearAuth, setError, setLoading } = useAuthStore()
+  const [isLoading, setIsLoading] = useState(false)
 
-  // Login mutation
-  const loginMutation = useMutation({
-    mutationFn: authApi.login,
-    onMutate: () => {
-      setLoading(true)
-      setError(null)
-    },
-    onSuccess: (data) => {
-      if (data.requires_2fa) {
-        // Handle 2FA flow
-        setError(null)
-        setLoading(false)
-        // You could navigate to a 2FA page or show modal
-        return
-      }
-      
-      setAuth(data.token, data.user)
-      setLoading(false)
-      navigate('/')
-    },
-    onError: (error) => {
-      const message = getErrorMessage(error)
-      setError(message)
-      setLoading(false)
-    },
-  })
+  // Zustand selectors (keeps components from over-subscribing)
+  const setError = useAuthStore((s) => s.setError)
+  const clearError = useAuthStore((s) => s.clearError)
+  const setUser = useAuthStore((s) => s.setUser)
+  const setToken = useAuthStore((s) => s.setToken)
 
-  // Register mutation
-  const registerMutation = useMutation({
-    mutationFn: authApi.register,
-    onMutate: () => {
-      setLoading(true)
-      setError(null)
-    },
-    onSuccess: (data) => {
-      setAuth(data.token, data.user)
-      setLoading(false)
-      navigate('/')
-    },
-    onError: (error) => {
-      const message = getErrorMessage(error)
-      setError(message)
-      setLoading(false)
-    },
-  })
+  const register = useCallback(async (data: RegisterData): Promise<AuthResponse> => {
+    setIsLoading(true)
+    clearError()
+    try {
+      const res = await authApi.register(data)
+      setUser(res.user)
+      setToken(res.token)
+      return res
+    } catch (e: any) {
+      setError(e?.response?.data?.error || e?.message || 'Registration failed')
+      throw e
+    } finally {
+      setIsLoading(false)
+    }
+  }, [clearError, setError, setUser, setToken])
 
-  // Check username availability
-  const checkUsername = useMutation({
-    mutationFn: authApi.checkUsername,
-  })
+  const login = useCallback(async (creds: { username: string; password: string }) => {
+    setIsLoading(true)
+    clearError()
+    try {
+      const res = await authApi.login(creds)
+      setUser(res.user)
+      setToken(res.token)
+      return res
+    } catch (e: any) {
+      setError(e?.response?.data?.error || e?.message || 'Login failed')
+      throw e
+    } finally {
+      setIsLoading(false)
+    }
+  }, [clearError, setError, setUser, setToken])
 
-  // Check email availability
-  const checkEmail = useMutation({
-    mutationFn: authApi.checkEmail,
-  })
+  const logout = useCallback(() => {
+    authApi.logout()
+  }, [])
 
-  // Verify token on mount
-  const { data: verifyData, isLoading: isVerifying } = useQuery({
-    queryKey: queryKeys.auth.verify,
-    queryFn: authApi.verifyToken,
-    enabled: !!useAuthStore.getState().token,
-    retry: false,
-  })
+  // IMPORTANT: These must proxy the API *verbatim* so UI can read `available`
+  const checkUsername = useCallback(async (username: string): Promise<FieldValidation> => {
+    return authApi.checkUsername(username) // => { available: boolean, message? }
+  }, [])
 
-  const logout = () => {
-    clearAuth()
-    queryClient.clear()
-    navigate('/login')
-  }
+  const checkEmail = useCallback(async (email: string): Promise<FieldValidation> => {
+    return authApi.checkEmail(email) // => { available: boolean, message? }
+  }, [])
 
-  return {
-    login: loginMutation.mutate,
-    register: registerMutation.mutate,
-    logout,
-    checkUsername: checkUsername.mutateAsync,
-    checkEmail: checkEmail.mutateAsync,
-    isLoading: loginMutation.isPending || registerMutation.isPending || isVerifying,
-    isVerifying,
-  }
+  return { register, login, logout, checkUsername, checkEmail, isLoading }
 }

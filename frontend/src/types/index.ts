@@ -1,129 +1,91 @@
-// ============================================
-// User & Authentication Types
-// ============================================
+// frontend/src/types/index.ts
 
-export interface User {
+// ===== Auth =====
+export type UserPublic = {
   id: number
   username: string
   email: string
   first_name?: string | null
   last_name?: string | null
-  email_verified: boolean
-  two_factor_enabled: boolean
-  created_at: string
-  updated_at: string
+  email_verified?: boolean
+  two_factor_enabled?: boolean
 }
 
-export interface LoginCredentials {
+export type LoginCredentials = {
   username: string
   password: string
-  two_factor_code?: string
 }
 
-export interface RegisterData {
+export type RegisterData = {
   username: string
   email: string
   password: string
   password_confirm: string
   first_name?: string
   last_name?: string
-  birthdate?: string
-  phone_number?: string
 }
 
-export interface AuthResponse {
-  message: string
+export type AuthResponse = {
+  message?: string
   token: string
-  user: User
-  requires_2fa?: boolean
-  method?: string
+  user: UserPublic
 }
 
-// ============================================
-// Conversation & Message Types
-// ============================================
+export type FieldValidation = {
+  available: boolean
+  message?: string
+}
 
-export interface Message {
-  id: number
-  conversation_id: number
-  role: 'user' | 'assistant'
+// ===== Conversations / Messages =====
+export type Message = {
+  id?: number
+  role: 'user' | 'assistant' | 'system'
   content: string
-  agent?: string | null
-  model?: string | null
-  created_at: string
+  created_at?: string | number
+  agent?: string
+  model?: string
 }
 
-export interface Conversation {
+export type Conversation = {
   id: number
   user_id: number
   title: string
-  preview?: string
-  created_at: string
-  updated_at: string
+  created_at?: string | number
+  updated_at?: string | number
   messages?: Message[]
 }
 
-export interface ConversationListResponse {
+export type ConversationListResponse = {
   conversations: Conversation[]
   total: number
   limit: number
   offset: number
 }
 
-export interface ConversationResponse {
+export type ConversationResponse = {
   conversation: Conversation
 }
 
-// ============================================
-// API Request/Response Types
-// ============================================
-
-export interface MessageRequest {
+// ===== Message API =====
+export type MessageRequest = {
   message: string
-  conversation_id?: number | null
+  conversation_id?: number | string | null
 }
 
-export interface MessageResponse {
+export type MessageResponse = {
   response: string
   conversation_id: number
   is_new_conversation: boolean
-  conversation_title?: string
+  conversation_title?: string | null
   agent_used: string
   model: string
   langchain_enabled: boolean
-  needs_language?: boolean
+  needs_language: boolean
 }
 
-export interface ApiError {
-  error: string
-  message?: string
-  details?: Record<string, any>
-}
-
-// ============================================
-// UI State Types
-// ============================================
-
-export type ViewMode = 'hero' | 'chat'
-
-export interface AppState {
-  currentConversationId: number | null
-  viewMode: ViewMode
-  sidebarExpanded: boolean
-  isLoading: boolean
-}
-
-export interface ThinkingState {
-  isThinking: boolean
-  messageId?: string
-}
-
-// ============================================
-// Health & Stats Types
-// ============================================
-
-export interface HealthResponse {
-  status: string
+// ===== Health =====
+export type HealthResponse = {
+  status: 'healthy' | 'degraded' | 'down' | string
   langchain_enabled: boolean
   models: string[]
   agents: string[]
@@ -131,39 +93,4 @@ export interface HealthResponse {
     total_requests: number
     avg_response_time_ms: number
   }
-}
-
-// ============================================
-// Form Validation Types
-// ============================================
-
-export interface ValidationResult {
-  isValid: boolean
-  errors: Record<string, string>
-}
-
-export interface FieldValidation {
-  available?: boolean
-  message: string
-}
-
-// ============================================
-// Markdown & Rendering Types
-// ============================================
-
-export interface CodeBlock {
-  language: string
-  code: string
-}
-
-// ============================================
-// Export/Import Types
-// ============================================
-
-export type ExportFormat = 'markdown' | 'json' | 'pdf'
-
-export interface ExportOptions {
-  format: ExportFormat
-  conversationId: number
-  includeMetadata?: boolean
 }

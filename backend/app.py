@@ -1,11 +1,11 @@
-from flask import Flask, request, jsonify
+# backend/app.py
+from flask import Flask, request, jsonify, g
 from flask_cors import CORS
 from dotenv import load_dotenv
 import os
 import time
 from werkzeug.utils import secure_filename
 from pathlib import Path
-import shutil
 
 # -------- LangChain integration (NEW) ----------
 # Safe to import even if you keep legacy only; guarded by try/except in initialize_models()
@@ -21,7 +21,7 @@ from src.agents.router_agent import RouterAgent, LanguageDetectorAgent
 from src.utils.text_processor import TextProcessor
 from src.utils.logger import AgentLogger
 from src.utils.memory import ConversationMemory
-from src.utils.title_generator import generate_title_from_message, generate_title_with_llm
+from src.utils.title_generator import generate_title_from_message
 
 # -------- Database imports ----------
 from src.database.db import Database
@@ -29,31 +29,40 @@ from src.database.user import User
 from src.database.conversation import Conversation
 
 # -------- Auth imports ----------
-from src.routes import auth
+from src.routes.auth import auth_bp  # Blueprint with /check-username, /check-email, etc.
 from src.middleware.auth import token_required
 
 load_dotenv()
 
 app = Flask(__name__)
-CORS(app, resources={
-    r"/api/*": {
+CORS(
+    app,
+    resources={r"/api/*": {
         "origins": [os.getenv("FRONTEND_URL", "http://localhost:3000")],
-        "methods": ["GET", "POST", "DELETE", "PUT"],
-        "allow_headers": ["Content-Type", "Authorization"]
-    }
-})
+        "methods": ["GET", "POST", "DELETE", "PUT", "OPTIONS"],
+        "allow_headers": ["Content-Type", "Authorization"],
+    }},
+    supports_credentials=True,
+)
+
+# -------- Register Blueprints ----------
+# This mounts all auth endpoints under /api/auth/...
+# e.g. /api/auth/check-username, /api/auth/check-email, etc.
+app.register_blueprint(auth_bp, url_prefix="/api/auth")
 
 # File upload configuration
 UPLOAD_FOLDER = Path('data/documents')
 ALLOWED_EXTENSIONS = {'txt', 'pdf', 'docx', 'md', 'csv', 'json'}
 UPLOAD_FOLDER.mkdir(parents=True, exist_ok=True)
 
-def allowed_file(filename):
+def allowed_file(filename: str) -> bool:
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 # -------- Initialize database ----------
 db_manager = Database()
 db = db_manager.connect()
+# Make DB reachable from blueprint helpers via app.config and g
+app.config["DB"] = db
 
 # -------- Initialize database models ----------
 user_model = User(db)
@@ -73,14 +82,36 @@ memory = ConversationMemory()
 
 # Perf stats
 request_count = 0
-total_response_time = 0
+total_response_time = 0.0
+
+
+# ============================================
+# Request timing hooks (for health stats)
+# ============================================
+@app.before_request
+def _start_timer():
+    g._start_time = time.time()
+
+@app.after_request
+def _record_timing(response):
+    global request_count, total_response_time
+    start = getattr(g, "_start_time", None)
+    if start is not None:
+        total_response_time += (time.time() - start)
+        request_count += 1
+    return response
+
+@app.before_request
+def _attach_db():
+    # expose DB handle to request context
+    g.db = app.config.get("DB", None)
 
 
 def initialize_models():
     """Load AI models and construct agents/chains"""
     print("Initializing AI models...")
     global models, agents, use_langchain
-    
+
     if models and agents:
         return
 
@@ -90,15 +121,15 @@ def initialize_models():
         try:
             # Initialize LangChain wrapper
             qwen_lc.initialize()
-            
+
             # Initialize agent with tools
             initialize_agent(qwen_lc.instruct_llm, qwen_lc.chat_chain)
-            
+
             # Initialize RAG system (NEW)
             print("🔍 Initializing RAG system...")
             initialize_rag()
             print("✅ RAG system initialized!")
-            
+
             print("✅ LangChain system ready!")
         except Exception as e:
             print(f"❌ LangChain initialization failed: {e}")
@@ -139,65 +170,13 @@ except Exception as e:
 
 
 # ============================================
-# AUTH ROUTES (keep your full surface area)
-# ============================================
-
-@app.route('/api/auth/register', methods=['POST'])
-def register():
-    return auth.register(db)
-
-@app.route('/api/auth/login', methods=['POST'])
-def login():
-    return auth.login(db)
-
-@app.route('/api/auth/verify', methods=['GET'])
-def verify():
-    return auth.verify_token()
-
-@app.route('/api/auth/check-username', methods=['POST'])
-def check_username():
-    return auth.check_username(db)
-
-@app.route('/api/auth/check-email', methods=['POST'])
-def check_email():
-    return auth.check_email(db)
-
-@app.route('/api/auth/verify-email/<token>', methods=['GET'])
-def verify_email(token):
-    return auth.verify_email(db, token)
-
-@app.route('/api/auth/resend-verification', methods=['POST'])
-@token_required
-def resend_verification():
-    return auth.resend_verification(db, {'user_id': request.user_id})
-
-@app.route('/api/auth/forgot-password', methods=['POST'])
-def forgot_password():
-    return auth.forgot_password(db)
-
-@app.route('/api/auth/reset-password/<token>', methods=['POST'])
-def reset_password(token):
-    return auth.reset_password(db, token)
-
-@app.route('/api/auth/enable-2fa', methods=['POST'])
-@token_required
-def enable_2fa():
-    return auth.enable_2fa(db, {'user_id': request.user_id})
-
-@app.route('/api/auth/disable-2fa', methods=['POST'])
-@token_required
-def disable_2fa():
-    return auth.disable_2fa(db, {'user_id': request.user_id})
-
-
-# ============================================
 # HEALTH CHECK
 # ============================================
 
 @app.route('/api/health', methods=['GET'])
 def health():
     """Health check with stats"""
-    avg_response_time = (total_response_time / request_count) if request_count > 0 else 0
+    avg_response_time = (total_response_time / request_count) if request_count > 0 else 0.0
     return jsonify({
         "status": "healthy",
         "langchain_enabled": use_langchain,
@@ -220,9 +199,6 @@ def unified_message():
     """
     Unified message endpoint with authentication, LC routing, and auto titles.
     """
-    global request_count, total_response_time
-    start_time = time.time()
-
     user_id = request.user_id
     data = request.json or {}
     message = (data.get('message') or '').strip()
@@ -274,7 +250,9 @@ def unified_message():
             model_used = "Qwen2.5-3B-Instruct (LangChain)"
             needs_language = False
         else:
-            response_text, agent_type, model_used, needs_language = handle_legacy_request(message, user_id, conversation_id)
+            response_text, agent_type, model_used, needs_language = handle_legacy_request(
+                message, user_id, conversation_id
+            )
 
         # Save assistant message
         conversation_model.add_message(
@@ -285,11 +263,7 @@ def unified_message():
             model=model_used
         )
 
-        # Perf
-        elapsed = time.time() - start_time
-        request_count += 1
-        total_response_time += elapsed
-        logger.logger.info(f"Request completed in {elapsed:.2f}s")
+        logger.logger.info("Request served")
 
         return jsonify({
             "response": response_text,
@@ -325,14 +299,9 @@ def handle_legacy_request(message: str, user_id: int, conversation_id: int):
     """Handle request using legacy system (fallback)"""
     session_key = f"{user_id}_{conversation_id}"
     if session_key not in sessions:
-        sessions[session_key] = {
-            'waiting_for_language': False,
-            'pending_task': None
-        }
-
+        sessions[session_key] = {'waiting_for_language': False, 'pending_task': None}
     session = sessions[session_key]
 
-    # If we previously asked user to specify language for code
     if session.get('waiting_for_language'):
         code_agent = agents['code']
         result = code_agent.handle_language_response(message)
@@ -340,7 +309,6 @@ def handle_legacy_request(message: str, user_id: int, conversation_id: int):
         logger.log_response(result['response'], "code", f"user_{user_id}")
         return result['response'], 'code', "Qwen2.5-Coder-3B-Instruct", False
 
-    # Route fresh message
     router = agents['router']
     agent_type = router.route_request(message)
 
@@ -470,14 +438,15 @@ def delete_legacy_conversation(session_id):
 
 @app.route('/api/stats', methods=['GET'])
 def get_stats():
-    avg_response_time = (total_response_time / request_count) if request_count > 0 else 0
+    avg_response_time = (total_response_time / request_count) if request_count > 0 else 0.0
     return jsonify({
         "total_requests": request_count,
         "avg_response_time_seconds": round(avg_response_time, 3),
         "avg_response_time_ms": round(avg_response_time * 1000, 2),
         "active_sessions": len(sessions),
-        "models_loaded": list(models.keys())
+        "models_loaded": list(models.keys()) if models else (["langchain"] if use_langchain else []),
     })
+
 
 # ============================================
 # FILE UPLOAD & RAG MANAGEMENT
@@ -488,48 +457,48 @@ def get_stats():
 def upload_file():
     """Upload and index a document"""
     user_id = request.user_id
-    
+
     if 'file' not in request.files:
         return jsonify({"error": "No file provided"}), 400
-    
+
     file = request.files['file']
-    
+
     if file.filename == '':
         return jsonify({"error": "No file selected"}), 400
-    
+
     if not allowed_file(file.filename):
         return jsonify({
             "error": f"File type not allowed. Allowed: {', '.join(ALLOWED_EXTENSIONS)}"
         }), 400
-    
+
     try:
         # Secure filename
         filename = secure_filename(file.filename)
-        
+
         # Save file
         file_path = UPLOAD_FOLDER / filename
         file.save(str(file_path))
-        
+
         print(f"📁 Saved file: {file_path}")
-        
+
         # Index document
         rag = get_rag_system()
         result = rag.index_documents([str(file_path)])
-        
+
         if result['success']:
             logger.logger.info(f"User {user_id} uploaded and indexed: {filename}")
             return jsonify({
                 "success": True,
-                "message": f"File uploaded and indexed successfully",
+                "message": "File uploaded and indexed successfully",
                 "filename": filename,
                 "indexed": result['indexed']
             })
         else:
             return jsonify({
                 "success": False,
-                "error": result['message']
+                "error": result.get('message', 'Indexing failed')
             }), 500
-    
+
     except Exception as e:
         logger.log_error(str(e), f"user_{user_id}")
         return jsonify({"error": str(e)}), 500
@@ -543,17 +512,18 @@ def list_documents():
         documents = []
         for file_path in UPLOAD_FOLDER.glob('*'):
             if file_path.is_file():
+                stat = file_path.stat()
                 documents.append({
                     "name": file_path.name,
-                    "size": file_path.stat().st_size,
-                    "created": file_path.stat().st_ctime
+                    "size": stat.st_size,
+                    "created": stat.st_ctime
                 })
-        
+
         return jsonify({
             "documents": documents,
             "total": len(documents)
         })
-    
+
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -565,20 +535,18 @@ def delete_document(filename):
     try:
         filename = secure_filename(filename)
         file_path = UPLOAD_FOLDER / filename
-        
+
         if not file_path.exists():
             return jsonify({"error": "File not found"}), 404
-        
+
         file_path.unlink()
-        
-        # Note: We don't remove from vector store (would need document ID tracking)
-        # For now, clearing and reindexing is the clean way
-        
+
+        # Note: Vector store cleanup would need document ID tracking.
         return jsonify({
             "success": True,
             "message": f"Deleted {filename}"
         })
-    
+
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -591,7 +559,7 @@ def rag_stats():
         rag = get_rag_system()
         stats = rag.get_stats()
         return jsonify(stats)
-    
+
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -604,9 +572,10 @@ def rag_reindex():
         rag = get_rag_system()
         result = rag.index_documents()  # Index all files in directory
         return jsonify(result)
-    
+
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", "5001"))
