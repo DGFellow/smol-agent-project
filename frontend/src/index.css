@@ -5,14 +5,15 @@
 /* Global Styles */
 @layer base {
   * {
-    @apply border-border;
+    border-color: theme('colors.gray.200');
   }
   
   body {
-    @apply bg-gradient-to-br from-[#667eea] to-[#764ba2] text-dark-800 antialiased;
+    @apply text-gray-800 antialiased;
     margin: 0;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
     min-height: 100vh;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   }
   
   #root {
@@ -52,7 +53,9 @@
 @layer components {
   /* Glassmorphism effect */
   .glass {
-    @apply bg-white/10 backdrop-blur-lg border border-white/20;
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
   }
   
   /* Gradient text */
@@ -196,4 +199,356 @@ code {
 
 .status-pulse {
   animation: status-pulse 2s infinite;
+}
+
+/* Sidebar styles */
+.sidebar {
+  @apply bg-white border-r border-gray-200 shadow-lg flex flex-col sticky top-0 h-screen overflow-hidden;
+}
+
+.sidebar-overlay {
+  @apply fixed inset-0 bg-black/50 opacity-0 invisible transition-all duration-300 z-40;
+}
+
+.sidebar-overlay.active {
+  @apply opacity-100 visible;
+}
+
+.sidebar-grid {
+  @apply flex flex-row items-stretch h-full;
+}
+
+.sidebar-rail {
+  @apply flex-none w-14 flex flex-col items-center gap-2 p-2 bg-white relative z-10;
+}
+
+.rail-btn,
+.nav-item {
+  @apply w-10 h-10 rounded-lg border border-gray-300 bg-white text-gray-800 flex items-center justify-center cursor-pointer transition-all hover:bg-gray-50 hover:border-gray-400;
+}
+
+.nav-item {
+  @apply relative overflow-visible p-0;
+}
+
+.nav-item .nav-icon {
+  @apply inline-flex items-center justify-center pointer-events-none;
+}
+
+.nav-item .nav-label {
+  @apply absolute left-full ml-2 top-1/2 -translate-y-1/2 h-10 leading-10 px-3 rounded-lg bg-transparent text-gray-800 font-semibold text-sm whitespace-nowrap opacity-0 pointer-events-none transition-all border border-transparent z-10;
+}
+
+.app-shell.expanded .nav-item {
+  @apply border-transparent bg-transparent;
+}
+
+.app-shell.expanded .nav-item:hover {
+  @apply bg-transparent border-transparent shadow-none;
+}
+
+.app-shell.expanded .nav-item .nav-label {
+  @apply opacity-100 pointer-events-auto bg-transparent;
+}
+
+.app-shell.expanded .nav-item:hover .nav-label {
+  @apply bg-gray-50 border-gray-300;
+}
+
+.sidebar-panel {
+  @apply flex-none w-0 max-w-0 overflow-hidden opacity-0 flex flex-col bg-white transition-all duration-300 relative z-0;
+}
+
+.app-shell.expanded .sidebar-panel {
+  @apply flex-1 max-w-full opacity-100;
+}
+
+.sidebar-content {
+  @apply flex-1 overflow-y-auto p-2;
+}
+
+.conversation-list {
+  @apply flex flex-col gap-2;
+}
+
+.conversation-item {
+  @apply p-3 rounded-lg border border-gray-200 bg-white cursor-pointer transition-all hover:bg-gray-50 hover:border-primary-300 relative;
+}
+
+.conversation-item.active {
+  @apply bg-primary-50 border-primary-500;
+}
+
+.conversation-item-header {
+  @apply flex justify-between items-center mb-1;
+}
+
+.conversation-title {
+  @apply font-semibold text-sm text-gray-900 truncate max-w-[180px];
+}
+
+.conversation-date {
+  @apply text-xs text-gray-500;
+}
+
+.conversation-preview {
+  @apply text-xs text-gray-600;
+}
+
+.conversation-actions {
+  @apply absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity;
+}
+
+.conversation-item:hover .conversation-actions {
+  @apply opacity-100;
+}
+
+.conversation-export,
+.conversation-delete {
+  @apply w-6 h-6 border-0 rounded cursor-pointer flex items-center justify-center transition-colors;
+}
+
+.conversation-export {
+  @apply bg-primary-500 text-white hover:bg-primary-600;
+}
+
+.conversation-delete {
+  @apply bg-red-500 text-white hover:bg-red-600;
+}
+
+.conversation-empty {
+  @apply py-12 px-4 text-center text-gray-600;
+}
+
+/* App shell */
+.app-shell {
+  @apply grid transition-all duration-300;
+  grid-template-columns: 56px 1fr;
+}
+
+.app-shell.expanded {
+  grid-template-columns: 280px 1fr;
+}
+
+.app-content {
+  @apply flex flex-col min-w-0;
+}
+
+/* Header */
+.site-header {
+  @apply bg-transparent relative z-50;
+}
+
+.site-header-content {
+  @apply max-w-screen-xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-2;
+}
+
+.site-header h1,
+.conv-title {
+  @apply text-gray-200 text-base font-bold tracking-tight m-0;
+}
+
+/* Footer */
+.site-footer {
+  @apply bg-transparent mt-auto relative z-50;
+}
+
+.footer-content {
+  @apply max-w-screen-xl mx-auto px-4 py-2 text-center;
+}
+
+.footer-content p {
+  @apply text-gray-300 text-sm m-0;
+}
+
+/* Status chip */
+.status-chip {
+  @apply inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-gray-700 text-gray-200 font-semibold text-sm;
+}
+
+.status-dot {
+  @apply w-2.5 h-2.5 rounded-full bg-green-500;
+}
+
+.status-dot.loading {
+  @apply bg-yellow-500;
+}
+
+.status-dot.error {
+  @apply bg-red-500;
+}
+
+/* Chat container */
+.chat-container {
+  @apply flex-1 flex flex-col max-w-6xl w-full mx-auto px-4 md:px-8 py-8;
+}
+
+.chat-interface {
+  @apply flex-1 flex flex-col bg-white rounded-xl shadow-medium overflow-hidden;
+}
+
+/* Hero view */
+.empty-hero {
+  @apply flex flex-col items-center justify-center flex-1 gap-6 text-center py-12;
+}
+
+.hero-title {
+  @apply text-4xl md:text-5xl font-extrabold text-gray-900 leading-tight;
+}
+
+.hero-chips {
+  @apply flex flex-wrap gap-3 justify-center max-w-2xl;
+}
+
+.chip {
+  @apply border border-gray-300 bg-white text-gray-700 px-4 py-2 rounded-full font-semibold text-sm hover:bg-gray-50 hover:border-gray-400 transition-all cursor-pointer;
+}
+
+/* Message composer */
+.pill-composer {
+  @apply flex items-center gap-3 bg-white border border-gray-300 rounded-full px-4 py-3 shadow-soft focus-within:border-primary-500 focus-within:shadow-medium transition-all max-w-3xl w-full mx-auto;
+}
+
+.pill-left,
+.pill-right {
+  @apply flex items-center gap-2;
+}
+
+.pill-icon-btn {
+  @apply w-9 h-9 rounded-full border border-gray-300 bg-white hover:bg-gray-50 flex items-center justify-center transition-colors;
+}
+
+.pill-input {
+  @apply flex-1 resize-none bg-transparent border-0 outline-none text-gray-900 placeholder-gray-500 min-h-6 max-h-40 py-1;
+}
+
+.pill-send {
+  @apply w-10 h-10 rounded-full flex items-center justify-center transition-all;
+}
+
+/* Messages */
+.messages {
+  @apply flex-1 overflow-y-auto p-6 bg-gray-50 scrollbar-thin;
+}
+
+.message {
+  @apply mb-4 p-4 rounded-lg animate-fade-in;
+}
+
+.message.user {
+  @apply bg-primary-500 text-white ml-auto;
+}
+
+.message.assistant {
+  @apply bg-white border border-primary-500 mr-auto;
+}
+
+.message.assistant.thinking {
+  @apply border-dashed border-gray-300;
+}
+
+.message .message-label {
+  @apply font-bold mb-2 text-sm;
+}
+
+.thinking-indicator {
+  @apply inline-flex items-center gap-1 text-gray-600 font-semibold;
+}
+
+.dot {
+  @apply w-1.5 h-1.5 rounded-full bg-gray-400;
+}
+
+/* Input area */
+.input-area {
+  @apply bg-gray-50 border-t border-gray-200 p-4;
+}
+
+/* Account button */
+.account-btn {
+  @apply mt-auto relative;
+}
+
+.account-avatar {
+  @apply w-9 h-9 rounded-full bg-gradient-to-br from-primary-500 to-secondary-500 text-white flex items-center justify-center font-bold text-sm;
+}
+
+.account-popup {
+  @apply fixed bottom-16 left-16 w-80 bg-white rounded-2xl shadow-hard border border-gray-200 overflow-hidden animate-fade-in z-50;
+}
+
+.account-popup[aria-hidden="true"] {
+  @apply hidden;
+}
+
+.account-popup-header {
+  @apply flex items-center gap-3 p-5 bg-gradient-to-br from-primary-50 to-secondary-50;
+}
+
+.account-popup-avatar {
+  @apply w-12 h-12 rounded-full bg-gradient-to-br from-primary-500 to-secondary-500 text-white flex items-center justify-center font-bold text-lg flex-shrink-0;
+}
+
+.account-popup-info {
+  @apply flex-1 min-w-0;
+}
+
+.account-popup-name {
+  @apply font-semibold text-gray-900 truncate;
+}
+
+.account-popup-email {
+  @apply text-sm text-gray-600 truncate;
+}
+
+.account-popup-divider {
+  @apply h-px bg-gray-200 my-2;
+}
+
+.account-popup-item {
+  @apply w-full flex items-center gap-3 px-5 py-3 hover:bg-gray-50 transition-colors;
+}
+
+.account-popup-footer {
+  @apply flex items-center gap-3 p-4 bg-gray-50 border-t border-gray-200;
+}
+
+/* Code blocks */
+.code-block {
+  @apply my-4 rounded-lg overflow-hidden border border-gray-700;
+}
+
+.code-header {
+  @apply flex justify-between items-center px-4 py-2 bg-gray-900 border-b border-gray-700;
+}
+
+.code-lang {
+  @apply text-xs font-semibold text-gray-400 uppercase;
+}
+
+.copy-btn {
+  @apply text-gray-400 hover:text-white transition-colors p-1 rounded hover:bg-gray-800;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .app-shell {
+    grid-template-columns: 0 1fr;
+  }
+  
+  .app-shell.expanded {
+    grid-template-columns: 0 1fr;
+  }
+  
+  .sidebar {
+    @apply fixed left-0 top-0 bottom-0 w-72 -translate-x-full transition-transform;
+  }
+  
+  .sidebar.open {
+    @apply translate-x-0;
+  }
+  
+  .account-popup {
+    @apply left-1/2 -translate-x-1/2 w-[calc(100vw-2rem)] max-w-96;
+  }
 }
