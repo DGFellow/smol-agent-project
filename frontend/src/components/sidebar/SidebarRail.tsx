@@ -1,60 +1,66 @@
 import React from 'react'
 import { useAppStore } from '@/store/appStore'
 
-const IconButton: React.FC<
-  React.ButtonHTMLAttributes<HTMLButtonElement>
-> = ({ className = '', children, ...props }) => (
-  <button
-    {...props}
-    className={
-      'w-10 h-10 grid place-items-center rounded-xl hover:bg-white/10 transition-colors ' +
-      'focus:outline-none focus:ring-2 focus:ring-blue-500 ' +
-      className
-    }
-  >
-    {children}
-  </button>
-)
-
-const SidebarRailComponent: React.FC = () => {
+/**
+ * Always-visible narrow rail (md+). The panel width/visibility is controlled by
+ * `.app-shell.expanded` via index.css; this rail only toggles that state.
+ *
+ * CSS hooks used here (see index.css):
+ * - .sidebar-rail       container
+ * - .nav-item           button style
+ * - .nav-icon           icon wrapper
+ * - .nav-label          hover/expanded label (revealed when .app-shell.expanded)
+ */
+export function SidebarRail() {
   const sidebarExpanded = useAppStore((s) => s.sidebarExpanded)
   const toggleSidebar = useAppStore((s) => s.toggleSidebar)
 
   return (
-    <div
-      className="
-        hidden md:flex
-        sticky top-0
-        h-screen w-16 shrink-0
-        flex-col items-center gap-3
-        border-r border-white/10
-        bg-gradient-to-b from-slate-900/40 to-slate-900/10
-        backdrop-blur
-        p-3
-      "
-    >
-      {/* Hamburger toggles the expandable panel */}
-      <IconButton
+    <div className="sidebar-rail">
+      {/* Hamburger / menu toggle */}
+      <button
+        type="button"
+        className="nav-item"
         aria-label="Toggle sidebar panel"
         aria-expanded={sidebarExpanded}
         onClick={toggleSidebar}
         title={sidebarExpanded ? 'Collapse' : 'Expand'}
       >
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
-          <path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" strokeWidth="2" />
-        </svg>
-      </IconButton>
+        <span className="nav-icon" aria-hidden>
+          {/* hamburger icon */}
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+            <path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" strokeWidth="2" />
+          </svg>
+        </span>
+        <span className="nav-label">Menu</span>
+      </button>
 
-      {/* Example placeholder for other rail actions */}
-      <IconButton aria-label="Chat">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
-          <path d="M4 5h16v10H7l-3 3V5z" stroke="currentColor" strokeWidth="2" />
-        </svg>
-      </IconButton>
+      {/* Example: Chats (clicking could also open the panel if you want) */}
+      <button
+        type="button"
+        className="nav-item"
+        aria-label="Chats"
+        onClick={() => {
+          // Optional: opening the panel when a tool is selected feels nice
+          if (!sidebarExpanded) useAppStore.getState().openSidebar?.()
+        }}
+      >
+        <span className="nav-icon" aria-hidden>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+            <path
+              d="M4 5h16v10H8l-4 4V5z"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </span>
+        <span className="nav-label">Chats</span>
+      </button>
+
+      {/* Add more rail actions as needed */}
+      {/* <button className="nav-item" aria-label="Search"> ... </button> */}
     </div>
   )
 }
-
-// Provide both exports to satisfy any import style
-export const SidebarRail = SidebarRailComponent
-export default SidebarRailComponent
