@@ -3,11 +3,15 @@ from flask_cors import CORS
 from dotenv import load_dotenv
 import os
 import time
+from werkzeug.utils import secure_filename
+from pathlib import Path
+import shutil
 
 # -------- LangChain integration (NEW) ----------
 # Safe to import even if you keep legacy only; guarded by try/except in initialize_models()
 from src.langchain_integration.chains import qwen_lc
 from src.langchain_integration.agent import initialize_agent, get_router
+from src.langchain_integration.rag import get_rag_system
 
 # -------- Project imports - Legacy models (KEEP) ----------
 from src.models.model_loader import ModelLoader
@@ -38,6 +42,14 @@ CORS(app, resources={
         "allow_headers": ["Content-Type", "Authorization"]
     }
 })
+
+# File upload configuration
+UPLOAD_FOLDER = Path('data/documents')
+ALLOWED_EXTENSIONS = {'txt', 'pdf', 'docx', 'md', 'csv', 'json'}
+UPLOAD_FOLDER.mkdir(parents=True, exist_ok=True)
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 # -------- Initialize database ----------
 db_manager = Database()
@@ -465,6 +477,134 @@ def get_stats():
         "models_loaded": list(models.keys())
     })
 
+# ============================================
+# FILE UPLOAD & RAG MANAGEMENT
+# ============================================
+
+@app.route('/api/upload', methods=['POST'])
+@token_required
+def upload_file():
+    """Upload and index a document"""
+    user_id = request.user_id
+    
+    if 'file' not in request.files:
+        return jsonify({"error": "No file provided"}), 400
+    
+    file = request.files['file']
+    
+    if file.filename == '':
+        return jsonify({"error": "No file selected"}), 400
+    
+    if not allowed_file(file.filename):
+        return jsonify({
+            "error": f"File type not allowed. Allowed: {', '.join(ALLOWED_EXTENSIONS)}"
+        }), 400
+    
+    try:
+        # Secure filename
+        filename = secure_filename(file.filename)
+        
+        # Save file
+        file_path = UPLOAD_FOLDER / filename
+        file.save(str(file_path))
+        
+        print(f"📁 Saved file: {file_path}")
+        
+        # Index document
+        rag = get_rag_system()
+        result = rag.index_documents([str(file_path)])
+        
+        if result['success']:
+            logger.logger.info(f"User {user_id} uploaded and indexed: {filename}")
+            return jsonify({
+                "success": True,
+                "message": f"File uploaded and indexed successfully",
+                "filename": filename,
+                "indexed": result['indexed']
+            })
+        else:
+            return jsonify({
+                "success": False,
+                "error": result['message']
+            }), 500
+    
+    except Exception as e:
+        logger.log_error(str(e), f"user_{user_id}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/documents', methods=['GET'])
+@token_required
+def list_documents():
+    """List uploaded documents"""
+    try:
+        documents = []
+        for file_path in UPLOAD_FOLDER.glob('*'):
+            if file_path.is_file():
+                documents.append({
+                    "name": file_path.name,
+                    "size": file_path.stat().st_size,
+                    "created": file_path.stat().st_ctime
+                })
+        
+        return jsonify({
+            "documents": documents,
+            "total": len(documents)
+        })
+    
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/documents/<filename>', methods=['DELETE'])
+@token_required
+def delete_document(filename):
+    """Delete an uploaded document"""
+    try:
+        filename = secure_filename(filename)
+        file_path = UPLOAD_FOLDER / filename
+        
+        if not file_path.exists():
+            return jsonify({"error": "File not found"}), 404
+        
+        file_path.unlink()
+        
+        # Note: We don't remove from vector store (would need document ID tracking)
+        # For now, clearing and reindexing is the clean way
+        
+        return jsonify({
+            "success": True,
+            "message": f"Deleted {filename}"
+        })
+    
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/rag/stats', methods=['GET'])
+@token_required
+def rag_stats():
+    """Get RAG system statistics"""
+    try:
+        rag = get_rag_system()
+        stats = rag.get_stats()
+        return jsonify(stats)
+    
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/rag/reindex', methods=['POST'])
+@token_required
+def rag_reindex():
+    """Reindex all documents"""
+    try:
+        rag = get_rag_system()
+        result = rag.index_documents()  # Index all files in directory
+        return jsonify(result)
+    
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", "5001"))
