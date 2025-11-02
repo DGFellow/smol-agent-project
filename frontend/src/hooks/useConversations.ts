@@ -38,7 +38,7 @@ export function useConversation(id: number | null) {
 
 export function useConversationActions() {
   const queryClient = useQueryClient()
-  const { setCurrentConversationId, resetToHero } = useAppStore()
+  const { setCurrentConversationId, setViewMode } = useAppStore()
 
   // Delete conversation
   const deleteMutation = useMutation({
@@ -50,7 +50,8 @@ export function useConversationActions() {
       // If current conversation was deleted, reset to hero
       const currentId = useAppStore.getState().currentConversationId
       if (currentId === deletedId) {
-        resetToHero()
+        setCurrentConversationId(null)
+        setViewMode('hero')
       }
       
       toast.success('Conversation deleted')
@@ -80,12 +81,13 @@ export function useConversationActions() {
   // Load conversation
   const loadConversation = (id: number) => {
     setCurrentConversationId(id)
-    useAppStore.getState().setViewMode('chat')
+    setViewMode('chat')
   }
 
   // Start new conversation
   const startNewConversation = () => {
-    resetToHero()
+    setCurrentConversationId(null)
+    setViewMode('hero')
   }
 
   return {
