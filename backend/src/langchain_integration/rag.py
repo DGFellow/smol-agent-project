@@ -15,7 +15,10 @@ from llama_index.core import (
 )
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from llama_index.vector_stores.chroma import ChromaVectorStore
+from llama_index.llms.huggingface import HuggingFaceLLM
 import chromadb
+import torch
+from transformers import AutoTokenizer, AutoModelForCausalLM
 
 
 class RAGSystem:
@@ -27,11 +30,13 @@ class RAGSystem:
         self,
         documents_dir: str = "data/documents",
         vector_store_dir: str = "data/vector_store",
-        collection_name: str = "smol_agent_docs"
+        collection_name: str = "smol_agent_docs",
+        llm_model = None  # Optional: pass existing Qwen model
     ):
         self.documents_dir = Path(documents_dir)
         self.vector_store_dir = Path(vector_store_dir)
         self.collection_name = collection_name
+        self.llm_model = llm_model
         
         self.index = None
         self.query_engine = None
@@ -51,6 +56,33 @@ class RAGSystem:
             model_name="sentence-transformers/all-MiniLM-L6-v2",
             cache_folder="./model_cache"
         )
+        
+        # Set up LLM for query synthesis (use local Qwen model)
+        if self.llm_model is None:
+            print("📦 Loading Qwen model for RAG query engine...")
+            # Load a lightweight Qwen model for RAG
+            tokenizer = AutoTokenizer.from_pretrained(
+                "Qwen/Qwen2.5-3B-Instruct",
+                cache_dir="./model_cache"
+            )
+            model = AutoModelForCausalLM.from_pretrained(
+                "Qwen/Qwen2.5-3B-Instruct",
+                torch_dtype=torch.float16,
+                device_map="auto",
+                cache_dir="./model_cache"
+            )
+            
+            Settings.llm = HuggingFaceLLM(
+                model=model,
+                tokenizer=tokenizer,
+                max_new_tokens=256,
+                generate_kwargs={
+                    "temperature": 0.7,
+                    "do_sample": True,
+                }
+            )
+        else:
+            Settings.llm = self.llm_model
         
         # Initialize ChromaDB
         chroma_client = chromadb.PersistentClient(path=str(self.vector_store_dir))
@@ -191,7 +223,8 @@ class RAGSystem:
                 "total_documents": doc_count,
                 "documents_dir": str(self.documents_dir),
                 "vector_store_dir": str(self.vector_store_dir),
-                "embedding_model": "sentence-transformers/all-MiniLM-L6-v2"
+                "embedding_model": "sentence-transformers/all-MiniLM-L6-v2",
+                "llm_model": "Qwen2.5-3B-Instruct"
             }
         except Exception as e:
             return {
