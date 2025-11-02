@@ -1,7 +1,7 @@
-import { Download, Trash2 } from 'lucide-react'
+import { Trash2 } from 'lucide-react'
 import { useAppStore } from '@/store/appStore'
 import { useConversationActions } from '@/hooks/useConversations'
-import { formatDate, truncate } from '@/lib/utils'
+import { formatRelativeTime, truncate } from '@/lib/utils'
 import { cn } from '@/lib/utils'
 import type { Conversation } from '@/types'
 
@@ -20,76 +20,52 @@ export function ConversationList({ conversations }: ConversationListProps) {
     }
   }
 
-  const handleExport = (e: React.MouseEvent, id: number) => {
-    e.stopPropagation()
-    // TODO: Implement export functionality
-    alert('Export feature coming soon!')
-  }
-
   return (
-    <div className="conversation-list space-y-2">
-      {conversations.map((conv) => (
-        <div
-          key={conv.id}
-          onClick={() => loadConversation(conv.id)}
-          className={cn(
-            'conversation-item group relative',
-            'p-3 rounded-lg border border-gray-200 bg-white',
-            'cursor-pointer transition-all duration-200',
-            'hover:bg-gray-50 hover:border-primary-300',
-            currentConversationId === conv.id && 'bg-primary-50 border-primary-500'
-          )}
-        >
-          <div className="conversation-item-header flex justify-between items-start mb-1">
-            <span
-              className={cn(
-                'conversation-title font-semibold text-sm',
-                'truncate max-w-[180px]',
-                currentConversationId === conv.id
-                  ? 'text-primary-700'
-                  : 'text-gray-900'
-              )}
-            >
-              {conv.title || 'Untitled'}
-            </span>
-            <span className="conversation-date text-xs text-gray-500 flex-shrink-0 ml-2">
-              {formatDate(conv.updated_at)}
-            </span>
-          </div>
-
-          {conv.preview && (
-            <p className="conversation-preview text-xs text-gray-600 truncate">
-              {truncate(conv.preview, 60)}
-            </p>
-          )}
-
-          {/* Action buttons - show on hover */}
+    <div className="space-y-1">
+      {conversations.map((conv) => {
+        const isActive = currentConversationId === conv.id
+        
+        return (
           <div
+            key={conv.id}
+            onClick={() => loadConversation(conv.id)}
             className={cn(
-              'conversation-actions absolute top-2 right-2',
-              'flex gap-1 opacity-0 group-hover:opacity-100',
-              'transition-opacity duration-200'
+              'group relative px-3 py-2 rounded-lg cursor-pointer transition-all',
+              isActive
+                ? 'bg-gray-800 text-white'
+                : 'hover:bg-gray-800 text-gray-300 hover:text-white'
             )}
           >
-            <button
-              onClick={(e) => handleExport(e, conv.id)}
-              className="conversation-export p-1.5 rounded bg-primary-500 hover:bg-primary-600 text-white transition-colors"
-              title="Export"
-              aria-label="Export conversation"
-            >
-              <Download className="w-3.5 h-3.5" />
-            </button>
-            <button
-              onClick={(e) => handleDelete(e, conv.id)}
-              className="conversation-delete p-1.5 rounded bg-red-500 hover:bg-red-600 text-white transition-colors"
-              title="Delete"
-              aria-label="Delete conversation"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-            </button>
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex-1 min-w-0">
+                <p className={cn(
+                  'text-sm font-medium truncate',
+                  isActive ? 'text-white' : 'text-gray-200'
+                )}>
+                  {conv.title || 'Untitled'}
+                </p>
+                {conv.preview && (
+                  <p className="text-xs text-gray-500 truncate mt-0.5">
+                    {truncate(conv.preview, 40)}
+                  </p>
+                )}
+              </div>
+              
+              {/* Delete button - shows on hover */}
+              <button
+                onClick={(e) => handleDelete(e, conv.id)}
+                className={cn(
+                  'flex-shrink-0 p-1 rounded hover:bg-red-500/20 transition-opacity',
+                  'opacity-0 group-hover:opacity-100'
+                )}
+                title="Delete"
+              >
+                <Trash2 className="w-3.5 h-3.5 text-gray-400 hover:text-red-400" />
+              </button>
+            </div>
           </div>
-        </div>
-      ))}
+        )
+      })}
     </div>
   )
 }

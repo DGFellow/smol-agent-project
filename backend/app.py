@@ -119,20 +119,24 @@ def initialize_models():
     if use_langchain:
         print("🔗 Using LangChain integration...")
         try:
-            # Initialize LangChain wrapper
+            # 1. Initialize LangChain wrapper (models)
             qwen_lc.initialize()
-
-            # Initialize agent with tools
-            initialize_agent(qwen_lc.instruct_llm, qwen_lc.chat_chain)
-
-            # Initialize RAG system (NEW)
+            
+            # 2. Initialize RAG system FIRST (only once!)
             print("🔍 Initializing RAG system...")
-            initialize_rag()
+            rag_system = initialize_rag()
             print("✅ RAG system initialized!")
+
+            # 3. Initialize agent with tools (pass RAG system to avoid re-initialization)
+            initialize_agent(qwen_lc.instruct_llm, qwen_lc.chat_chain, rag_system=rag_system)
 
             print("✅ LangChain system ready!")
         except Exception as e:
-            print(f"❌ LangChain initialization failed: {e}")
+            import traceback
+            print(f"❌ LangChain initialization failed: ")
+            print("******")
+            traceback.print_exc()
+            print("******")
             print("Falling back to legacy system...")
             use_langchain = False
             initialize_legacy_models()

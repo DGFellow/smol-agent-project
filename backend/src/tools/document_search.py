@@ -5,12 +5,6 @@ Wraps RAG system as a LangChain tool
 
 from langchain.tools import Tool
 from typing import Optional
-import sys
-import os
-
-# Import RAG system
-sys.path.append(os.path.dirname(os.path.dirname(__file__)))
-from langchain_integration.rag import get_rag_system
 
 
 class DocumentSearchTool:
@@ -19,8 +13,9 @@ class DocumentSearchTool:
     Used by LangChain agent for RAG
     """
     
-    def __init__(self):
-        self.rag = get_rag_system()
+    def __init__(self, rag_system):
+        """Initialize with existing RAG system instance"""
+        self.rag = rag_system
     
     def search(self, query: str) -> str:
         """
@@ -32,7 +27,10 @@ class DocumentSearchTool:
         Returns:
             Search results
         """
-        return self.rag.search(query)
+        try:
+            return self.rag.search(query)
+        except Exception as e:
+            return f"Error searching documents: {str(e)}"
     
     def as_langchain_tool(self) -> Tool:
         """
@@ -57,7 +55,15 @@ Returns relevant excerpts from indexed documents."""
         )
 
 
-def create_document_search_tool() -> Tool:
-    """Create and return document search tool"""
-    tool = DocumentSearchTool()
+def create_document_search_tool(rag_system) -> Tool:
+    """
+    Create and return document search tool
+    
+    Args:
+        rag_system: Existing RAG system instance (don't create new one!)
+        
+    Returns:
+        LangChain Tool for document search
+    """
+    tool = DocumentSearchTool(rag_system)
     return tool.as_langchain_tool()

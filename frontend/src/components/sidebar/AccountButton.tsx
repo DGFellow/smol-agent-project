@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { LogOut, Settings, User, ChevronDown } from 'lucide-react'
+import { LogOut, Settings, User } from 'lucide-react'
 import { useAuthStore } from '@/store/authStore'
 import { useAuth } from '@/hooks/useAuth'
 import { getInitials, cn } from '@/lib/utils'
@@ -35,7 +35,6 @@ export function AccountButton() {
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && isOpen) {
         setIsOpen(false)
-        buttonRef.current?.focus()
       }
     }
 
@@ -49,16 +48,19 @@ export function AccountButton() {
   const initials = getInitials(user.username)
 
   return (
-    <div className="account-btn mt-auto relative">
+    <div className="relative">
       <button
         ref={buttonRef}
         onClick={() => setIsOpen(!isOpen)}
-        className="rail-btn p-0 overflow-visible"
+        className="w-full flex items-center gap-3 px-3 py-2 hover:bg-gray-800 rounded-lg transition-colors"
         aria-label="Account menu"
-        aria-expanded={isOpen}
       >
-        <div className="account-avatar w-9 h-9 rounded-full bg-gradient-to-br from-primary-500 to-secondary-500 text-white flex items-center justify-center font-bold text-sm">
+        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary-500 to-secondary-500 text-white flex items-center justify-center font-bold text-sm flex-shrink-0">
           {initials}
+        </div>
+        <div className="flex-1 text-left min-w-0">
+          <p className="text-sm font-medium text-white truncate">{displayName}</p>
+          <p className="text-xs text-gray-400 truncate">Free plan</p>
         </div>
       </button>
 
@@ -66,31 +68,13 @@ export function AccountButton() {
       {isOpen && (
         <div
           ref={popupRef}
-          className={cn(
-            'account-popup fixed bottom-16 left-16',
-            'w-80 bg-white rounded-2xl shadow-hard',
-            'border border-gray-200 overflow-hidden',
-            'animate-fade-in z-50'
-          )}
-          aria-hidden={!isOpen}
+          className="absolute bottom-full left-0 mb-2 w-64 bg-gray-800 border border-gray-700 rounded-lg shadow-xl z-50 overflow-hidden"
         >
           {/* Header */}
-          <div className="account-popup-header flex items-center gap-3 p-5 bg-gradient-to-br from-primary-50 to-secondary-50">
-            <div className="account-popup-avatar w-12 h-12 rounded-full bg-gradient-to-br from-primary-500 to-secondary-500 text-white flex items-center justify-center font-bold text-lg flex-shrink-0">
-              {initials}
-            </div>
-            <div className="account-popup-info flex-1 min-w-0">
-              <div className="account-popup-name font-semibold text-gray-900 truncate">
-                {displayName}
-              </div>
-              <div className="account-popup-email text-sm text-gray-600 truncate">
-                {user.email}
-              </div>
-            </div>
+          <div className="px-4 py-3 border-b border-gray-700">
+            <p className="text-sm font-medium text-white truncate">{displayName}</p>
+            <p className="text-xs text-gray-400 truncate">{user.email}</p>
           </div>
-
-          {/* Divider */}
-          <div className="account-popup-divider h-px bg-gray-200 my-2" />
 
           {/* Menu items */}
           <div className="py-1">
@@ -99,9 +83,9 @@ export function AccountButton() {
                 setIsOpen(false)
                 // TODO: Navigate to profile
               }}
-              className="account-popup-item w-full flex items-center gap-3 px-5 py-3 hover:bg-gray-50 transition-colors"
+              className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 transition-colors"
             >
-              <User className="w-5 h-5 text-gray-600" />
+              <User className="w-4 h-4" />
               <span>Profile</span>
             </button>
 
@@ -110,15 +94,15 @@ export function AccountButton() {
                 setIsOpen(false)
                 // TODO: Navigate to settings
               }}
-              className="account-popup-item w-full flex items-center gap-3 px-5 py-3 hover:bg-gray-50 transition-colors"
+              className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 transition-colors"
             >
-              <Settings className="w-5 h-5 text-gray-600" />
+              <Settings className="w-4 h-4" />
               <span>Settings</span>
             </button>
           </div>
 
           {/* Divider */}
-          <div className="account-popup-divider h-px bg-gray-200 my-2" />
+          <div className="h-px bg-gray-700 my-1" />
 
           {/* Logout */}
           <div className="py-1">
@@ -127,31 +111,10 @@ export function AccountButton() {
                 setIsOpen(false)
                 logout()
               }}
-              className="account-popup-item w-full flex items-center gap-3 px-5 py-3 hover:bg-red-50 text-red-600 transition-colors"
+              className="w-full flex items-center gap-3 px-4 py-2 text-sm text-red-400 hover:bg-gray-700 transition-colors"
             >
-              <LogOut className="w-5 h-5" />
+              <LogOut className="w-4 h-4" />
               <span>Log out</span>
-            </button>
-          </div>
-
-          {/* Footer */}
-          <div className="account-popup-footer flex items-center gap-3 p-4 bg-gray-50 border-t border-gray-200">
-            <div className="account-popup-footer-avatar w-9 h-9 rounded-full bg-gradient-to-br from-primary-500 to-secondary-500 text-white flex items-center justify-center font-bold text-sm flex-shrink-0">
-              {initials}
-            </div>
-            <div className="account-popup-footer-info flex-1 min-w-0">
-              <div className="account-popup-footer-name font-semibold text-sm text-gray-900 truncate">
-                {displayName}
-              </div>
-              <div className="account-popup-footer-plan text-xs text-gray-600">
-                Free Plan
-              </div>
-            </div>
-            <button
-              onClick={() => setIsOpen(false)}
-              className="account-popup-footer-toggle w-8 h-8 rounded-lg border border-gray-300 bg-white hover:bg-gray-100 flex items-center justify-center transition-colors"
-            >
-              <ChevronDown className="w-4 h-4 text-gray-600" />
             </button>
           </div>
         </div>

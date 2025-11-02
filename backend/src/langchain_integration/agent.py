@@ -36,8 +36,9 @@ class QwenAgent:
     Can reason about which tool to use for a given task.
     """
 
-    def __init__(self, llm):
+    def __init__(self, llm, rag_system=None):
         self.llm = llm
+        self.rag_system = rag_system
         self.tools: List[Tool] = []
         self.agent_executor: Optional[AgentExecutor] = None
         self._setup_tools()
@@ -83,14 +84,18 @@ class QwenAgent:
                 "Performs basic safety checks; returns stdout or error."
             ),
         )
-        # ---------- NEW: Document Search (RAG) ----------
-        try:
-            doc_search_tool = create_document_search_tool()
-            self.tools = [calculator_tool, search_tool, executor_tool, doc_search_tool]
-            print("✅ Document search tool added to agent")
-        except Exception as e:
-            print(f"⚠️  Could not load document search tool: {e}")
-            self.tools = [calculator_tool, search_tool, executor_tool]
+        
+        # Start with basic tools
+        self.tools = [calculator_tool, search_tool, executor_tool]
+        
+        # ---------- Document Search (RAG) - only if RAG system provided ----------
+        if self.rag_system:
+            try:
+                doc_search_tool = create_document_search_tool(self.rag_system)
+                self.tools.append(doc_search_tool)
+                print("✅ Document search tool added to agent")
+            except Exception as e:
+                print(f"⚠️  Could not load document search tool: {e}")
 
     def _create_agent(self):
         """
@@ -147,6 +152,9 @@ class RouterAgent:
             "python",
             "what is",
             "how many",
+            "document",
+            "file",
+            "uploaded",
         }
         needs_tool = any(k in message.lower() for k in tool_keywords)
 
@@ -164,11 +172,18 @@ _agent: Optional[QwenAgent] = None
 _router: Optional[RouterAgent] = None
 
 
-def initialize_agent(llm, chat_chain):
-    """Initialize the agent and router (called from app.py)."""
+def initialize_agent(llm, chat_chain, rag_system=None):
+    """
+    Initialize the agent and router (called from app.py).
+    
+    Args:
+        llm: Language model instance
+        chat_chain: Chat chain instance
+        rag_system: Optional RAG system instance (pass existing one to avoid re-initialization)
+    """
     global _agent, _router
     print("🤖 Initializing agent with tools...")
-    _agent = QwenAgent(llm)
+    _agent = QwenAgent(llm, rag_system=rag_system)
     _router = RouterAgent(llm, chat_chain, _agent.agent_executor)
     print("✅ Agent ready!")
 

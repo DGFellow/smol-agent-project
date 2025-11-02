@@ -1,52 +1,48 @@
 import { create } from 'zustand'
-import type { ViewMode } from '@/types'
+
+type ViewMode = 'hero' | 'chat'
 
 interface AppState {
-  // UI State
+  // View state
   viewMode: ViewMode
-  sidebarExpanded: boolean
-  currentConversationId: number | null
-
-  // Loading states
-  isThinking: boolean
-
-  // Actions
   setViewMode: (mode: ViewMode) => void
-  setSidebarExpanded: (expanded: boolean) => void
-  toggleSidebar: () => void
-  openSidebar: () => void
-  closeSidebar: () => void
+  
+  // Current conversation
+  currentConversationId: number | null
   setCurrentConversationId: (id: number | null) => void
+  
+  // Thinking state
+  isThinking: boolean
   setThinking: (thinking: boolean) => void
-  resetToHero: () => void
+  
+  // Sidebar state
+  isSidebarOpen: boolean
+  toggleSidebar: () => void
+  setSidebarOpen: (open: boolean) => void
+  
+  // Reset to initial state
+  reset: () => void
+}
+
+const initialState = {
+  viewMode: 'hero' as ViewMode,
+  currentConversationId: null,
+  isThinking: false,
+  isSidebarOpen: true,
 }
 
 export const useAppStore = create<AppState>((set) => ({
-  // Initial state
-  viewMode: 'hero',
-  sidebarExpanded: false,
-  currentConversationId: null,
-  isThinking: false,
-
-  // Actions
+  ...initialState,
+  
   setViewMode: (mode) => set({ viewMode: mode }),
-
-  setSidebarExpanded: (expanded) => set({ sidebarExpanded: expanded }),
-
-  toggleSidebar: () =>
-    set((state) => ({ sidebarExpanded: !state.sidebarExpanded })),
-
-  openSidebar: () => set({ sidebarExpanded: true }),
-  closeSidebar: () => set({ sidebarExpanded: false }),
-
+  
   setCurrentConversationId: (id) => set({ currentConversationId: id }),
-
+  
   setThinking: (thinking) => set({ isThinking: thinking }),
-
-  resetToHero: () =>
-    set({
-      viewMode: 'hero',
-      currentConversationId: null,
-      isThinking: false,
-    }),
+  
+  toggleSidebar: () => set((state) => ({ isSidebarOpen: !state.isSidebarOpen })),
+  
+  setSidebarOpen: (open) => set({ isSidebarOpen: open }),
+  
+  reset: () => set(initialState),
 }))

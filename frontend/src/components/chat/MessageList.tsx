@@ -8,7 +8,15 @@ interface MessageListProps {
 }
 
 export function MessageList({ messages }: MessageListProps) {
-  const { isThinking } = useAppStore()
+  const isThinking = useAppStore((state) => state.isThinking)
+
+  if (messages.length === 0 && !isThinking) {
+    return (
+      <div className="flex items-center justify-center h-full text-gray-500">
+        <p>No messages yet. Start a conversation!</p>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-4">
@@ -16,6 +24,7 @@ export function MessageList({ messages }: MessageListProps) {
         <MessageBubble key={message.id} message={message} />
       ))}
       
+      {/* Show thinking indicator when waiting for response */}
       {isThinking && <ThinkingIndicator />}
     </div>
   )

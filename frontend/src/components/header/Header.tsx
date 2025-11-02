@@ -5,8 +5,11 @@ import { StatusIndicator } from '@/components/ui/StatusIndicator'
 import { cn } from '@/lib/utils'
 
 export function Header() {
-  const { toggleSidebar, currentConversationId } = useAppStore()
+  const { toggleSidebar, currentConversationId, viewMode } = useAppStore()
   const { conversation } = useConversation(currentConversationId)
+
+  // Only show title when in chat view and conversation exists
+  const showTitle = viewMode === 'chat' && conversation && conversation.title
 
   return (
     <header className="site-header bg-transparent">
@@ -20,14 +23,11 @@ export function Header() {
             <Menu className="w-5 h-5 text-gray-200" />
           </button>
           
-          <h1
-            className={cn(
-              'conv-title transition-opacity duration-200',
-              conversation?.title ? 'opacity-100' : 'opacity-0'
-            )}
-          >
-            {conversation?.title || 'Untitled'}
-          </h1>
+          {showTitle && (
+            <h1 className="conv-title text-gray-200 text-base font-bold tracking-tight">
+              {conversation.title}
+            </h1>
+          )}
         </div>
         
         <StatusIndicator />

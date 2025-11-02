@@ -28,10 +28,10 @@ export function useMessages() {
         setViewMode('chat')
       }
       
-      // Invalidate conversations list to show updated preview
+      // Invalidate conversations list to show updated preview AND title
       queryClient.invalidateQueries({ queryKey: queryKeys.conversations.all })
       
-      // Invalidate current conversation to show new messages
+      // Invalidate current conversation to show new messages AND updated title
       if (data.conversation_id) {
         queryClient.invalidateQueries({
           queryKey: queryKeys.conversations.detail(data.conversation_id),
@@ -48,5 +48,6 @@ export function useMessages() {
     sendMessageAsync: sendMutation.mutateAsync,
     isLoading: sendMutation.isPending,
     error: sendMutation.error ? getErrorMessage(sendMutation.error) : null,
+    data: sendMutation.data, // Expose the response data including title
   }
 }
