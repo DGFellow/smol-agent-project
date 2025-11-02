@@ -64,6 +64,12 @@ export function MessageComposer({
     const trimmed = message.trim()
     if (!trimmed || isLoading) return
 
+    // Clear input immediately for better UX
+    setMessage('')
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto'
+    }
+
     sendMessage(
       {
         message: trimmed,
@@ -71,12 +77,12 @@ export function MessageComposer({
       },
       {
         onSuccess: () => {
-          setMessage('')
-          if (textareaRef.current) {
-            textareaRef.current.style.height = 'auto'
-          }
           onSent?.()
         },
+        onError: () => {
+          // Restore message if error
+          setMessage(trimmed)
+        }
       }
     )
   }

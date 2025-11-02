@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { LogOut, Settings, User } from 'lucide-react'
 import { useAuthStore } from '@/store/authStore'
 import { useAuth } from '@/hooks/useAuth'
-import { getInitials, cn } from '@/lib/utils'
+import { getInitials } from '@/lib/utils'
 
 export function AccountButton() {
   const [isOpen, setIsOpen] = useState(false)

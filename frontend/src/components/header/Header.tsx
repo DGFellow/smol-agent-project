@@ -2,7 +2,6 @@ import { Menu } from 'lucide-react'
 import { useAppStore } from '@/store/appStore'
 import { useConversation } from '@/hooks/useConversations'
 import { StatusIndicator } from '@/components/ui/StatusIndicator'
-import { cn } from '@/lib/utils'
 
 export function Header() {
   const { toggleSidebar, currentConversationId, viewMode } = useAppStore()

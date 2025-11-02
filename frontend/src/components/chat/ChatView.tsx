@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import { Loader2 } from 'lucide-react'
 import { MessageList } from './MessageList'
 import { MessageComposer } from './MessageComposer'
+import { useAppStore } from '@/store/appStore'
 import type { Conversation } from '@/types'
 
 interface ChatViewProps {
@@ -11,11 +12,23 @@ interface ChatViewProps {
 
 export function ChatView({ conversation, isLoading }: ChatViewProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const { isThinking } = useAppStore()
 
-  // Auto-scroll to bottom when messages change
+  // Smooth scroll to bottom when messages change
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [conversation?.messages])
+    if (messagesEndRef.current && !isThinking) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' })
+    }
+  }, [conversation?.messages, isThinking])
+
+  // Initial scroll on load
+  useEffect(() => {
+    if (conversation && messagesEndRef.current) {
+      setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'auto', block: 'end' })
+      }, 100)
+    }
+  }, [conversation?.id])
 
   if (isLoading) {
     return (
@@ -37,7 +50,13 @@ export function ChatView({ conversation, isLoading }: ChatViewProps) {
     <div className="chat-interface flex-1 flex flex-col bg-white rounded-xl shadow-medium overflow-hidden">
       {/* Messages Area */}
       <div className="messages flex-1 overflow-y-auto p-6 bg-gray-50 scrollbar-thin">
-        <MessageList messages={conversation.messages || []} />
+        {conversation.messages && conversation.messages.length > 0 ? (
+          <MessageList messages={conversation.messages} />
+        ) : (
+          <div className="text-center text-gray-400 py-8">
+            <p>Start the conversation...</p>
+          </div>
+        )}
         <div ref={messagesEndRef} />
       </div>
 

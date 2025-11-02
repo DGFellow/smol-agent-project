@@ -1,48 +1,47 @@
 import { create } from 'zustand'
-
-type ViewMode = 'hero' | 'chat'
+import type { ViewMode } from '@/types'
 
 interface AppState {
-  // View state
+  // UI State
   viewMode: ViewMode
-  setViewMode: (mode: ViewMode) => void
-  
-  // Current conversation
+  sidebarExpanded: boolean
   currentConversationId: number | null
-  setCurrentConversationId: (id: number | null) => void
   
-  // Thinking state
+  // Loading states
   isThinking: boolean
-  setThinking: (thinking: boolean) => void
   
-  // Sidebar state
-  isSidebarOpen: boolean
+  // Actions
+  setViewMode: (mode: ViewMode) => void
+  setSidebarExpanded: (expanded: boolean) => void
   toggleSidebar: () => void
-  setSidebarOpen: (open: boolean) => void
-  
-  // Reset to initial state
-  reset: () => void
-}
-
-const initialState = {
-  viewMode: 'hero' as ViewMode,
-  currentConversationId: null,
-  isThinking: false,
-  isSidebarOpen: true,
+  setCurrentConversationId: (id: number | null) => void
+  setThinking: (thinking: boolean) => void
+  resetToHero: () => void
 }
 
 export const useAppStore = create<AppState>((set) => ({
-  ...initialState,
-  
+  // Initial state
+  viewMode: 'hero',
+  sidebarExpanded: false, // Start collapsed
+  currentConversationId: null,
+  isThinking: false,
+
+  // Actions
   setViewMode: (mode) => set({ viewMode: mode }),
+  
+  setSidebarExpanded: (expanded) => set({ sidebarExpanded: expanded }),
+  
+  toggleSidebar: () =>
+    set((state) => ({ sidebarExpanded: !state.sidebarExpanded })),
   
   setCurrentConversationId: (id) => set({ currentConversationId: id }),
   
   setThinking: (thinking) => set({ isThinking: thinking }),
   
-  toggleSidebar: () => set((state) => ({ isSidebarOpen: !state.isSidebarOpen })),
-  
-  setSidebarOpen: (open) => set({ isSidebarOpen: open }),
-  
-  reset: () => set(initialState),
+  resetToHero: () =>
+    set({
+      viewMode: 'hero',
+      currentConversationId: null,
+      isThinking: false,
+    }),
 }))

@@ -1,8 +1,7 @@
 import { Trash2 } from 'lucide-react'
 import { useAppStore } from '@/store/appStore'
 import { useConversationActions } from '@/hooks/useConversations'
-import { formatRelativeTime, truncate } from '@/lib/utils'
-import { cn } from '@/lib/utils'
+import { truncate, cn } from '@/lib/utils'
 import type { Conversation } from '@/types'
 
 interface ConversationListProps {
