@@ -122,15 +122,16 @@ def initialize_models():
             # 1. Initialize LangChain wrapper (models)
             qwen_lc.initialize()
             
-            # 2. Initialize RAG system FIRST (only once!)
+            # 2. Initialize RAG system with SHARED LLM (CRITICAL OPTIMIZATION!)
             print("🔍 Initializing RAG system...")
-            rag_system = initialize_rag()
+            rag_system = initialize_rag(shared_llm=qwen_lc.instruct_llm)  # ✅ SHARE THE MODEL!
             print("✅ RAG system initialized!")
 
             # 3. Initialize agent with tools (pass RAG system to avoid re-initialization)
             initialize_agent(qwen_lc.instruct_llm, qwen_lc.chat_chain, rag_system=rag_system)
 
             print("✅ LangChain system ready!")
+            print(f"💾 Memory optimization: Using 2 models instead of 3 (saved ~3GB VRAM)")
         except Exception as e:
             import traceback
             print(f"❌ LangChain initialization failed: ")

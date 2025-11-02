@@ -1,6 +1,7 @@
 """
 RAG (Retrieval Augmented Generation) System
 Uses LlamaIndex + ChromaDB for document indexing and retrieval
+OPTIMIZED: Shares existing Qwen model to avoid triple loading
 """
 
 import os
@@ -15,15 +16,13 @@ from llama_index.core import (
 )
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from llama_index.vector_stores.chroma import ChromaVectorStore
-from llama_index.llms.huggingface import HuggingFaceLLM
 import chromadb
-import torch
-from transformers import AutoTokenizer, AutoModelForCausalLM
 
 
 class RAGSystem:
     """
     Document retrieval system using LlamaIndex + ChromaDB
+    OPTIMIZED: Uses shared LLM from LangChain to avoid loading Qwen multiple times
     """
     
     def __init__(
@@ -31,12 +30,12 @@ class RAGSystem:
         documents_dir: str = "data/documents",
         vector_store_dir: str = "data/vector_store",
         collection_name: str = "smol_agent_docs",
-        llm_model = None  # Optional: pass existing Qwen model
+        shared_llm = None  # CRITICAL: Pass existing LangChain LLM
     ):
         self.documents_dir = Path(documents_dir)
         self.vector_store_dir = Path(vector_store_dir)
         self.collection_name = collection_name
-        self.llm_model = llm_model
+        self.shared_llm = shared_llm
         
         self.index = None
         self.query_engine = None
@@ -57,32 +56,14 @@ class RAGSystem:
             cache_folder="./model_cache"
         )
         
-        # Set up LLM for query synthesis (use local Qwen model)
-        if self.llm_model is None:
-            print("📦 Loading Qwen model for RAG query engine...")
-            # Load a lightweight Qwen model for RAG
-            tokenizer = AutoTokenizer.from_pretrained(
-                "Qwen/Qwen2.5-3B-Instruct",
-                cache_dir="./model_cache"
-            )
-            model = AutoModelForCausalLM.from_pretrained(
-                "Qwen/Qwen2.5-3B-Instruct",
-                torch_dtype=torch.float16,
-                device_map="auto",
-                cache_dir="./model_cache"
-            )
-            
-            Settings.llm = HuggingFaceLLM(
-                model=model,
-                tokenizer=tokenizer,
-                max_new_tokens=256,
-                generate_kwargs={
-                    "temperature": 0.7,
-                    "do_sample": True,
-                }
-            )
+        # CRITICAL: Use shared LLM from LangChain (DO NOT load new model!)
+        if self.shared_llm is not None:
+            print("✅ Using shared Qwen LLM for RAG (memory optimized)")
+            Settings.llm = self.shared_llm
         else:
-            Settings.llm = self.llm_model
+            print("⚠️  No shared LLM provided - RAG will use retrieval only")
+            # Set to None to skip query synthesis (faster, uses less memory)
+            Settings.llm = None
         
         # Initialize ChromaDB
         chroma_client = chromadb.PersistentClient(path=str(self.vector_store_dir))
@@ -107,10 +88,16 @@ class RAGSystem:
             )
         
         # Create query engine
-        self.query_engine = self.index.as_query_engine(
-            similarity_top_k=3,
-            response_mode="compact"
-        )
+        if Settings.llm is not None:
+            self.query_engine = self.index.as_query_engine(
+                similarity_top_k=3,
+                response_mode="compact"
+            )
+        else:
+            # Retriever only mode (no synthesis)
+            self.query_engine = self.index.as_retriever(
+                similarity_top_k=3
+            )
         
         print("✅ RAG system ready!")
     
@@ -197,16 +184,28 @@ class RAGSystem:
             if not self._has_documents():
                 return "No documents have been indexed yet. Please upload documents first."
             
-            # Update query engine with top_k
-            self.query_engine = self.index.as_query_engine(
-                similarity_top_k=top_k,
-                response_mode="compact"
-            )
-            
-            # Query
-            response = self.query_engine.query(query)
-            
-            return str(response)
+            if Settings.llm is not None:
+                # Full RAG with query synthesis
+                self.query_engine = self.index.as_query_engine(
+                    similarity_top_k=top_k,
+                    response_mode="compact"
+                )
+                response = self.query_engine.query(query)
+                return str(response)
+            else:
+                # Retriever only mode
+                retriever = self.index.as_retriever(similarity_top_k=top_k)
+                nodes = retriever.retrieve(query)
+                
+                # Format results manually
+                if not nodes:
+                    return "No relevant documents found."
+                
+                results = []
+                for i, node in enumerate(nodes, 1):
+                    results.append(f"[{i}] {node.get_text()[:300]}...")
+                
+                return "\n\n".join(results)
             
         except Exception as e:
             print(f"❌ Search error: {e}")
@@ -224,7 +223,8 @@ class RAGSystem:
                 "documents_dir": str(self.documents_dir),
                 "vector_store_dir": str(self.vector_store_dir),
                 "embedding_model": "sentence-transformers/all-MiniLM-L6-v2",
-                "llm_model": "Qwen2.5-3B-Instruct"
+                "llm_model": "Qwen2.5-3B-Instruct (shared)" if self.shared_llm else "None (retrieval only)",
+                "mode": "full_rag" if self.shared_llm else "retrieval_only"
             }
         except Exception as e:
             return {
@@ -251,12 +251,21 @@ def get_rag_system() -> RAGSystem:
     """Get or create RAG system instance"""
     global rag_system
     if rag_system is None:
+        print("⚠️  RAG system not initialized. Call initialize_rag() first.")
         rag_system = RAGSystem()
     return rag_system
 
 
-def initialize_rag():
-    """Initialize RAG system"""
+def initialize_rag(shared_llm=None):
+    """
+    Initialize RAG system with optional shared LLM
+    
+    Args:
+        shared_llm: Optional LangChain LLM instance to reuse (RECOMMENDED for memory optimization)
+    
+    Returns:
+        RAGSystem instance
+    """
     global rag_system
-    rag_system = RAGSystem()
+    rag_system = RAGSystem(shared_llm=shared_llm)
     return rag_system
