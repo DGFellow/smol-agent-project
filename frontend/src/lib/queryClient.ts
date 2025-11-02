@@ -3,9 +3,16 @@ import { QueryClient } from '@tanstack/react-query'
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 1000 * 60 * 5, // 5 minutes
-      gcTime: 1000 * 60 * 10, // 10 minutes (formerly cacheTime)
-      retry: 1,
+      staleTime: 1000 * 60 * 5,
+      gcTime: 1000 * 60 * 10,
+      retry: (failureCount, error: any) => {
+        // Don't retry on auth errors
+        if (error?.response?.status === 401 || error?.response?.status === 419) {
+          return false
+        }
+        // Retry other errors once
+        return failureCount < 1
+      },
       refetchOnWindowFocus: false,
       refetchOnMount: true,
     },

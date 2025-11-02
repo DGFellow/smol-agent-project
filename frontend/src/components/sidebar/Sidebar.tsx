@@ -13,7 +13,12 @@ export function Sidebar() {
   const { user } = useAuthStore()
   const { startNewConversation } = useConversationActions()
   const { conversations, isLoading } = useConversations({ limit: 50 })
-
+  
+  // Guard: Don't try to load conversations if not authenticated
+  if (!user) {
+    return null
+  }
+  
   // Close sidebar on escape
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {

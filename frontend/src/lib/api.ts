@@ -55,10 +55,15 @@ api.interceptors.response.use(
   (error: AxiosError<any>) => {
     const status = error.response?.status
     if (status === 401 || status === 419) {
+      // Clear auth state
       localStorage.removeItem('token')
       localStorage.removeItem('user')
-      if (!window.location.pathname.includes('/login')) {
-        window.location.href = '/login'
+      
+      // Only redirect if not already on auth pages
+      const currentPath = window.location.pathname
+      if (!currentPath.includes('/login') && !currentPath.includes('/register')) {
+        // Prevent loop by doing single redirect
+        window.location.replace('/login')
       }
     }
     return Promise.reject(error)
