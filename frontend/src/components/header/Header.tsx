@@ -1,36 +1,34 @@
-// Header.tsx
-import { Menu } from 'lucide-react'
+// src/components/header/Header.tsx
 import { useAppStore } from '@/store/appStore'
 import { useChat } from '@/hooks/useChat'
-import { StatusIndicator } from '@/components/ui/StatusIndicator'
 
 export function Header() {
-  const { toggleSidebar, currentConversationId, viewMode } = useAppStore()
+  const { currentConversationId } = useAppStore()
   const { conversation } = useChat(currentConversationId)
 
-  // Only show title when in chat view and conversation exists
-  const showTitle = viewMode === 'chat' && conversation && conversation.title
-
   return (
-    <header className="site-header bg-transparent">
-      <div className="site-header-content">
-        <div className="flex items-center gap-3">
-          <button
-            onClick={toggleSidebar}
-            className="lg:hidden p-2 hover:bg-white/10 rounded-lg transition-colors"
-            aria-label="Toggle sidebar"
-          >
-            <Menu className="w-5 h-5 text-gray-200" />
-          </button>
-          
-          {showTitle && (
-            <h1 className="conv-title text-gray-200 text-base font-bold tracking-tight">
-              {conversation.title}
+    <header className="site-header bg-transparent border-b border-white/10 flex-shrink-0">
+      <div className="site-header-content max-w-screen-xl mx-auto px-6 py-4 flex items-center justify-between">
+        {/* Left: Conversation title or app name */}
+        <div className="flex-1 min-w-0">
+          {conversation ? (
+            <h1 className="text-white text-lg font-semibold truncate">
+              {conversation.title || 'New Conversation'}
+            </h1>
+          ) : (
+            <h1 className="text-white text-lg font-semibold">
+              Smolagent
             </h1>
           )}
         </div>
-        
-        <StatusIndicator />
+
+        {/* Right: Status indicator */}
+        <div className="flex items-center gap-2 ml-4">
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-white/10 backdrop-blur-sm rounded-full">
+            <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+            <span className="text-white/90 text-sm font-medium">Ready</span>
+          </div>
+        </div>
       </div>
     </header>
   )
