@@ -1,10 +1,10 @@
 from flask import Blueprint, Response, request, stream_with_context, g, jsonify
 import json
-from src.middleware.auth import token_required  # Import to use the decorator
-from src.models.model_loader import ModelLoader  # Updated import: use the class instead of non-existent functions
+from src.middleware.auth import token_required
+from src.models.model_loader import ModelLoader
 from src.agents.chat_agent import ChatAgent
 from src.agents.thinking_agent import ThinkingAgent
-from config import Config  # Import shared config
+from config import Config
 
 # LangChain-specific imports (only if enabled)
 if Config.USE_LANGCHAIN:
@@ -12,15 +12,15 @@ if Config.USE_LANGCHAIN:
     from src.langchain_integration.chains import qwen_lc
     from src.langchain_integration.agent import get_router
 
-chat_bp = Blueprint('chat', __name__)  # Changed name to 'chat_bp' to match import in app.py
+chat_bp = Blueprint('chat', __name__)
 
 # Load legacy models at module level (only once, if not using LangChain)
 if not Config.USE_LANGCHAIN:
     loader = ModelLoader()
     model, tokenizer = loader.load_qwen_instruct()
 
-@chat_bp.route('/stream', methods=['POST'])  # Relative route; with url_prefix='/api/chat', becomes /api/chat/stream
-@token_required  # Add decorator for consistency with other endpoints
+@chat_bp.route('/stream', methods=['POST'])
+@token_required
 def stream_chat():
     """
     Stream chat response with thinking process
@@ -29,20 +29,18 @@ def stream_chat():
     {
         "message": "user message",
         "conversation_id": "optional_id",
-        "files": []  # Optional array of file IDs; currently ignored but can be processed if needed
+        "files": []
     }
    
     Response: Server-Sent Events (SSE) stream
     """
-    user_id = request.user_id  # Aligned with @token_required in app.py (assumes it sets g.user_id)
+    user_id = request.user_id
 
     data = request.json
     message = data.get('message', '')
     conversation_id = data.get('conversation_id')
-    files = data.get('files', [])  # Handle files if present; currently unused, but can add logic (e.g., for RAG)
+    files = data.get('files', [])
 
-    # Note: If files need processing, add here (e.g., load documents)
-   
     def generate():
         """Generate SSE stream"""
         nonlocal conversation_id
@@ -50,11 +48,11 @@ def stream_chat():
         response_content = ''
 
         try:
-            db = g.db  # Use attached db from app.py's _attach_db
+            db = g.db
 
             # Create new conversation if none provided
             if not conversation_id:
-                title = "New Conversation"  # Can use generate_title_from_message if imported
+                title = "New Conversation"
                 cursor = db.cursor()
                 cursor.execute(
                     "INSERT INTO conversations (user_id, title, created_at, updated_at) VALUES (?, ?, datetime('now'), datetime('now'))",
@@ -85,23 +83,26 @@ def stream_chat():
             history = [{'role': row[0], 'content': row[1]} for row in cursor.fetchall()]
 
             if Config.USE_LANGCHAIN:
-                # Convert history to LangChain format
+                # Convert history to LangChain format (exclude current user message for context)
                 lc_history = []
-                for msg in history:
+                for msg in history[:-1]:  # Exclude the message we just added
                     if msg['role'] == 'user':
                         lc_history.append(HumanMessage(content=msg['content']))
                     else:
                         lc_history.append(AIMessage(content=msg['content']))
 
-                # Use LangChain chain or agent for streaming (assumes chat_chain supports .stream; swap to router.astream_events if agent-based)
-                # For thinking steps, use astream_events if using agent
-                router = get_router()  # Assuming this returns the runnable agent/chain
-                # Simple chain stream example; for full agent with thinking, use: for event in router.astream_events({"input": message, "chat_history": lc_history}, version="v1"):
-                # Then parse event['event'] for 'on_chain_start' (thinking), 'on_llm_stream' (response tokens), etc.
-                for chunk in qwen_lc.chat_chain.stream({"messages": lc_history}):
-                    token = chunk.content if hasattr(chunk, 'content') else str(chunk)  # Adjust based on chain output format
-                    response_content += token
-                    yield f"data: {json.dumps({'type': 'response', 'content': token})}\n\n"
+                # Stream using LangChain
+                try:
+                    for chunk in qwen_lc.chat_chain.stream({"input": message, "chat_history": lc_history}):
+                        if chunk:  # Only send non-empty chunks
+                            response_content += chunk
+                            yield f"data: {json.dumps({'type': 'response', 'content': chunk})}\n\n"
+                except Exception as e:
+                    print(f"Streaming error: {e}")
+                    # Fallback to invoke if streaming fails
+                    result = qwen_lc.chat_chain.invoke({"input": message, "chat_history": lc_history})
+                    response_content = result.get("text", "")
+                    yield f"data: {json.dumps({'type': 'response', 'content': response_content})}\n\n"
             else:
                 # Legacy processing
                 base_agent = ChatAgent(model, tokenizer)
@@ -124,6 +125,9 @@ def stream_chat():
                 db.commit()
 
         except Exception as e:
+            print(f"Stream error: {e}")
+            import traceback
+            traceback.print_exc()
             yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
         finally:
             yield "data: [DONE]\n\n"
