@@ -1,7 +1,6 @@
 // frontend/src/hooks/useChat.ts
 /**
- * Consolidated Chat Hook
- * Features: Optimistic updates, streaming, reactions, search
+ * Consolidated Chat Hook - FIXED STREAMING
  */
 
 import { useState, useCallback, useRef, useEffect } from 'react'
@@ -11,7 +10,6 @@ import { queryKeys } from '@/lib/queryClient'
 import { useAppStore } from '@/store/appStore'
 import type { Message, MessageRequest, Conversation, ConversationResponse } from '@/types'
 
-// Toast notification helper
 type ToastType = 'success' | 'error' | 'info'
 interface Toast {
   id: string
@@ -40,10 +38,6 @@ export function useChat(conversationId?: number | null) {
   const [thinkingComplete, setThinkingComplete] = useState(false)
   const streamingRef = useRef<boolean>(false)
 
-  // ============================================
-  // TOAST NOTIFICATIONS
-  // ============================================
-  
   const showToast = useCallback((message: string, type: ToastType = 'info') => {
     const id = Date.now().toString()
     setToasts(prev => [...prev, { id, type, message }])
@@ -52,10 +46,7 @@ export function useChat(conversationId?: number | null) {
     }, 3000)
   }, [])
 
-  // ============================================
-  // CONVERSATIONS LIST
-  // ============================================
-  
+  // Conversations list
   const {
     data: conversationsData,
     isLoading: isLoadingList,
@@ -65,10 +56,7 @@ export function useChat(conversationId?: number | null) {
     queryFn: () => conversationApi.list({ limit: 50 }),
   })
 
-  // ============================================
-  // CURRENT CONVERSATION
-  // ============================================
-  
+  // Current conversation
   const {
     data: conversationData,
     isLoading: isLoadingConversation,
@@ -82,15 +70,19 @@ export function useChat(conversationId?: number | null) {
   const conversation = conversationData?.conversation || null
   const messages = conversation?.messages || []
 
-  // ============================================
-  // SEND MESSAGE (with streaming support)
-  // ============================================
-  
+  // SEND MESSAGE WITH STREAMING - FIXED!
   const sendMutation = useMutation({
     mutationFn: async (request: MessageRequest): Promise<StreamResult> => {
-      console.log('mutationFn started with request:', request)
+      console.log('🚀 Starting stream for message:', request.message)
+      
+      // RESET STATE
+      setStreamingMessage('')
+      setThinkingSteps([])
+      setThinkingComplete(false)
+      setThinkingDuration(undefined)
+      streamingRef.current = true // ✅ SET TO TRUE HERE!
+      
       try {
-        console.log('API base URL:', api.defaults.baseURL)
         const response = await fetch(`${api.defaults.baseURL}/chat/stream`, {
           method: 'POST',
           headers: {
@@ -99,7 +91,7 @@ export function useChat(conversationId?: number | null) {
           },
           body: JSON.stringify(request)
         })
-        console.log('Fetch response:', response.status, response.ok)
+
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`)
         }
@@ -121,18 +113,24 @@ export function useChat(conversationId?: number | null) {
           for (const line of lines) {
             if (line.startsWith('data: ')) {
               const data = line.slice(6)
-              if (data === '[DONE]') break
+              if (data === '[DONE]') {
+                console.log('✅ Stream complete')
+                break
+              }
 
               try {
                 const event = JSON.parse(data)
+                console.log('📦 SSE Event:', event.type)
 
                 switch (event.type) {
                   case 'thinking_start':
+                    console.log('🧠 Thinking started')
                     setThinking(true)
                     setThinkingSteps([])
                     break
 
                   case 'thinking_step':
+                    console.log('💭 Thinking step:', event.content)
                     setThinkingSteps(prev => [...prev, {
                       content: event.content,
                       step: event.step,
@@ -141,20 +139,23 @@ export function useChat(conversationId?: number | null) {
                     break
 
                   case 'thinking_complete':
+                    console.log('✅ Thinking complete:', event.duration + 's')
                     setThinking(false)
                     setThinkingComplete(true)
                     setThinkingDuration(event.duration)
                     break
 
                   case 'response':
+                    console.log('💬 Response chunk:', event.content)
                     setStreamingMessage(prev => prev + event.content)
                     fullResponse += event.content
                     break
 
                   case 'metadata':
                     if (event.conversation_id && !conversationId) {
+                      console.log('🆔 New conversation ID:', event.conversation_id)
                       newConversationId = event.conversation_id
-                      setCurrentConversationId(newConversationId || null)
+                      setCurrentConversationId(newConversationId)
                       setViewMode('chat')
                     }
                     break
@@ -170,16 +171,17 @@ export function useChat(conversationId?: number | null) {
         }
 
         streamingRef.current = false
+        console.log('✅ Stream ended, full response length:', fullResponse.length)
 
         return { content: fullResponse.trim(), newConversationId }
       } catch (error) {
-        console.error('Fetch error:', error)
+        streamingRef.current = false
+        console.error('❌ Stream error:', error)
         throw error
       }
     },
     onMutate: async (request: MessageRequest) => {
       if (conversationId) {
-        // Optimistic update for existing conversation
         const optimisticMessage: Message = {
           id: Date.now(),
           content: request.message,
@@ -210,7 +212,6 @@ export function useChat(conversationId?: number | null) {
     onSuccess: (result: StreamResult) => {
       const effectiveId = result.newConversationId || conversationId
       if (effectiveId) {
-        // Add assistant message optimistically
         const assistantMessage: Message = {
           id: Date.now() + 1,
           content: result.content || streamingMessage,
@@ -233,7 +234,6 @@ export function useChat(conversationId?: number | null) {
           })
         )
 
-        // Invalidate to fetch latest
         queryClient.invalidateQueries({ queryKey: queryKeys.conversations.detail(effectiveId) })
       }
 
@@ -261,10 +261,7 @@ export function useChat(conversationId?: number | null) {
     },
   })
 
-  // ============================================
-  // DELETE CONVERSATION
-  // ============================================
-
+  // Delete conversation
   const deleteMutation = useMutation({
     mutationFn: (id: number) => conversationApi.delete(id),
     onSuccess: (_data: unknown, deletedId: number) => {
@@ -278,10 +275,7 @@ export function useChat(conversationId?: number | null) {
     onError: (error: Error) => showToast(getErrorMessage(error), 'error'),
   })
 
-  // ============================================
-  // UPDATE TITLE
-  // ============================================
-
+  // Update title
   const updateTitleMutation = useMutation({
     mutationFn: ({ id, title }: { id: number; title: string }) =>
       conversationApi.updateTitle(id, title),
@@ -295,10 +289,7 @@ export function useChat(conversationId?: number | null) {
     onError: (error: Error) => showToast(getErrorMessage(error), 'error'),
   })
 
-  // ============================================
-  // REACT TO MESSAGE
-  // ============================================
-
+  // React to message
   const reactToMessage = useCallback(
     async (messageId: number, reaction: 'like' | 'dislike' | null) => {
       if (!conversationId) return
@@ -329,10 +320,7 @@ export function useChat(conversationId?: number | null) {
       }
     }, [conversationId, queryClient, showToast])
 
-  // ============================================
-  // CONVERSATION SEARCH
-  // ============================================
-  
+  // Search
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<Conversation[]>([])
 
@@ -354,57 +342,42 @@ export function useChat(conversationId?: number | null) {
     setSearchResults(filtered)
   }, [searchQuery, conversationsData])
 
-  // ============================================
-  // RETURN API
-  // ============================================
-  
   return {
-    // Conversations
     conversations: conversationsData?.conversations || [],
     isLoadingConversations: isLoadingList,
     refetchConversations,
     
-    // Current conversation
     conversation,
     messages,
     isLoadingConversation,
     refetchConversation,
     
-    // Streaming
-    isStreaming: streamingRef.current,
+    isStreaming: streamingRef.current, // ✅ Now properly tracked!
     streamingMessage,
     
-    // Thinking
     thinkingSteps,
     thinkingComplete,
     thinkingDuration,
     
-    // Send message
     sendMessage: sendMutation.mutate,
     sendMessageAsync: sendMutation.mutateAsync,
     isSending: sendMutation.isPending,
     
-    // Delete conversation
     deleteConversation: deleteMutation.mutate,
     isDeleting: deleteMutation.isPending,
     
-    // Update title
     updateTitle: updateTitleMutation.mutate,
     isUpdatingTitle: updateTitleMutation.isPending,
     
-    // Reactions
     reactToMessage,
     
-    // Search
     searchQuery,
     setSearchQuery,
     searchResults,
     
-    // Toasts
     toasts,
     showToast,
     
-    // Utils
     isLoading: isLoadingList || isLoadingConversation || sendMutation.isPending,
   }
 }
