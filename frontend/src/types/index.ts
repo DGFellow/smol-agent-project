@@ -43,15 +43,27 @@ export interface AuthResponse {
 // Conversation & Message Types
 // ============================================
 
+export interface ThinkingStep {
+  content: string
+  step: number
+  timestamp: number
+}
+
+export interface ThinkingData {
+  steps: ThinkingStep[]
+  duration: number
+}
+
 export interface Message {
   id: number
-  conversation_id: number
+  conversation_id?: number
   role: 'user' | 'assistant'
   content: string
   agent?: string | null
   model?: string | null
   reaction?: 'like' | 'dislike' | null
   created_at: string
+  thinking?: ThinkingData
 }
 
 export interface Conversation {
@@ -59,6 +71,7 @@ export interface Conversation {
   user_id: number
   title: string
   preview?: string
+  message_count?: number
   created_at: string
   updated_at: string
   messages?: Message[]
@@ -83,7 +96,7 @@ export interface MessageRequest {
   message: string
   conversation_id?: number | null
   stream?: boolean
-  files?: string[]  // Added for file IDs
+  files?: string[]
 }
 
 export interface MessageResponse {

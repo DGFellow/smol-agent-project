@@ -5,12 +5,12 @@
  */
 
 import { useState, useCallback, useRef, useEffect } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tantml:query'
 import api, { conversationApi, messageApi, getErrorMessage } from '@/lib/api'
 import { queryKeys } from '@/lib/queryClient'
 import { useAppStore } from '@/store/appStore'
 import axios from 'axios'
-import type { Message, MessageRequest, Conversation } from '@/types'
+import type { Message, MessageRequest, Conversation, ConversationResponse } from '@/types'
 
 // Toast notification helper
 type ToastType = 'success' | 'error' | 'info'
@@ -73,13 +73,6 @@ export function useChat(conversationId?: number | null) {
     queryKey: queryKeys.conversations.detail(conversationId || 0),
     queryFn: () => conversationApi.get(conversationId!),
     enabled: !!conversationId,
-    onError: (error) => {
-      if (axios.isAxiosError(error) && [403, 404].includes(error.response?.status || 0)) {
-        setCurrentConversationId(null)
-        setViewMode('hero')
-        showToast('Conversation not found or access denied', 'error')
-      }
-    },
   })
 
   const conversation = conversationData?.conversation || null
@@ -91,9 +84,9 @@ export function useChat(conversationId?: number | null) {
   
   const sendMutation = useMutation({
     mutationFn: async (request: MessageRequest) => {
-      console.log('mutationFn started with request:', request);
+      console.log('mutationFn started with request:', request)
       try {
-        console.log('API base URL:', api.defaults.baseURL);
+        console.log('API base URL:', api.defaults.baseURL)
         const response = await fetch(`${api.defaults.baseURL}/chat/stream`, {
           method: 'POST',
           headers: {
@@ -101,18 +94,18 @@ export function useChat(conversationId?: number | null) {
             'Authorization': `Bearer ${localStorage.getItem('token')}`
           },
           body: JSON.stringify(request)
-        });
-        console.log('Fetch response:', response.status, response.ok);
+        })
+        console.log('Fetch response:', response.status, response.ok)
         if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+          throw new Error(`HTTP error! status: ${response.status}`)
         }
-        // ... rest of the code
-        if (!response.body) throw new Error('No response body');
+        
+        if (!response.body) throw new Error('No response body')
 
         const reader = response.body.getReader()
         const decoder = new TextDecoder()
         let fullResponse = ''
-        let newConversationId: number | undefined;
+        let newConversationId: number | undefined
 
         while (true) {
           const { done, value } = await reader.read()
@@ -174,17 +167,10 @@ export function useChat(conversationId?: number | null) {
 
         streamingRef.current = false
 
-        // Parse the full response to extract only the final assistant message
-        // Assuming the response is formatted with Human: and Assistant: prefixes
-        const assistantParts = fullResponse.split('Assistant:')
-        const finalContent = assistantParts.length > 1 
-          ? assistantParts[assistantParts.length - 1].trim() 
-          : fullResponse.trim()
-
-        return { content: finalContent, newConversationId }
+        return { content: fullResponse.trim(), newConversationId }
       } catch (error) {
-        console.error('Fetch error:', error);
-        throw error; // to trigger onError
+        console.error('Fetch error:', error)
+        throw error
       }
     },
     onMutate: async (request) => {
@@ -195,7 +181,6 @@ export function useChat(conversationId?: number | null) {
           content: request.message,
           role: 'user',
           created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
           reaction: null,
         }
 
@@ -209,7 +194,7 @@ export function useChat(conversationId?: number | null) {
           queryKeys.conversations.detail(conversationId),
           (old) => ({
             conversation: {
-              ...old?.conversation,
+              ...old!.conversation,
               messages: [...(old?.conversation.messages || []), optimisticMessage],
             },
           })
@@ -217,8 +202,9 @@ export function useChat(conversationId?: number | null) {
 
         return { previous }
       }
+      return undefined
     },
-    onSuccess: (result, request, context) => {
+    onSuccess: (result) => {
       const effectiveId = result.newConversationId || conversationId
       if (effectiveId) {
         // Add assistant message optimistically
@@ -227,7 +213,6 @@ export function useChat(conversationId?: number | null) {
           content: result.content || streamingMessage,
           role: 'assistant',
           created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
           reaction: null,
           thinking: thinkingSteps.length > 0 ? {
             steps: thinkingSteps,
@@ -239,7 +224,7 @@ export function useChat(conversationId?: number | null) {
           queryKeys.conversations.detail(effectiveId),
           (old) => ({
             conversation: {
-              ...old?.conversation,
+              ...old!.conversation,
               messages: [...(old?.conversation.messages || []), assistantMessage],
             },
           })
@@ -257,7 +242,7 @@ export function useChat(conversationId?: number | null) {
       setThinkingDuration(undefined)
       setThinking(false)
     },
-    onError: (error, variables, context) => {
+    onError: (error, _variables, context) => {
       streamingRef.current = false
       setThinking(false)
       setStreamingMessage('')
@@ -279,9 +264,9 @@ export function useChat(conversationId?: number | null) {
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => conversationApi.delete(id),
-    onSuccess: () => {
+    onSuccess: (_data, deletedId) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.conversations.all })
-      if (currentConversationId === conversationId) {
+      if (conversationId === deletedId) {
         setCurrentConversationId(null)
         setViewMode('hero')
       }
@@ -296,7 +281,7 @@ export function useChat(conversationId?: number | null) {
 
   const updateTitleMutation = useMutation({
     mutationFn: ({ id, title }: { id: number; title: string }) =>
-      conversationApi.update(id, { title }),
+      conversationApi.updateTitle(id, title),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.conversations.all })
       if (conversationId) {
@@ -313,6 +298,8 @@ export function useChat(conversationId?: number | null) {
 
   const reactToMessage = useCallback(
     async (messageId: number, reaction: 'like' | 'dislike' | null) => {
+      if (!conversationId) return
+
       queryClient.setQueryData<ConversationResponse>(
         queryKeys.conversations.detail(conversationId),
         (old) => {
@@ -321,7 +308,7 @@ export function useChat(conversationId?: number | null) {
             ...old,
             conversation: {
               ...old.conversation,
-              messages: old.conversation.messages.map((msg: Message) =>
+              messages: old.conversation.messages?.map((msg: Message) =>
                 msg.id === messageId ? { ...msg, reaction } : msg
               ),
             },
