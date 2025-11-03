@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { MessageComposer } from './MessageComposer'
 import { Sparkles } from 'lucide-react'
 import type { User } from '@/types'
@@ -16,13 +15,11 @@ const SUGGESTION_CHIPS = [
 ]
 
 export function HeroView({ user }: HeroViewProps) {
-  const [selectedChip, setSelectedChip] = useState<string | null>(null)
-
   const firstName = user?.first_name || user?.username?.split(' ')[0] || 'there'
 
   const handleChipClick = (prompt: string) => {
-    // The MessageComposer will handle sending
-    setSelectedChip(prompt)
+    // TODO: Pre-fill the message composer with the prompt
+    console.log('Selected prompt:', prompt)
   }
 
   return (
@@ -37,8 +34,6 @@ export function HeroView({ user }: HeroViewProps) {
       <MessageComposer
         placeholder="How can I help you today?"
         autoFocus
-        initialValue={selectedChip || ''}
-        onSent={() => setSelectedChip(null)}
       />
 
       {/* Suggestion Chips */}
