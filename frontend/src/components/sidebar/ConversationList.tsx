@@ -1,5 +1,6 @@
+// src/components/sidebar/ConversationList.tsx
 import { useState } from 'react'
-import { Search, Trash2, Edit2, X } from 'lucide-react'
+import { Search, Trash2, Edit2, X, MessageSquare } from 'lucide-react'
 import { useChat } from '@/hooks/useChat'
 import { useAppStore } from '@/store/appStore'
 import { cn } from '@/lib/utils'
@@ -57,34 +58,33 @@ export function ConversationList() {
 
     if (days === 0) return 'Today'
     if (days === 1) return 'Yesterday'
-    if (days < 7) return `${days} days ago`
-    return date.toLocaleDateString()
+    if (days < 7) return `${days}d ago`
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
   }
 
   return (
     <div className="conversation-list-container flex flex-col h-full">
       {/* Search bar */}
-      <div className="search-container p-2 border-b border-gray-200">
+      <div className="search-container mb-3">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search conversations..."
-            className="w-full pl-9 pr-8 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+            placeholder="Search..."
+            className="w-full pl-9 pr-8 py-2 text-sm bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white placeholder-gray-500"
           />
           {searchQuery && (
             <button
               onClick={() => setSearchQuery('')}
-              className="absolute right-2 top-1/2 -translate-y-1/2 p-1 hover:bg-gray-100 rounded"
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-1 hover:bg-gray-700 rounded"
             >
-              <X className="w-3 h-3 text-gray-500" />
+              <X className="w-3 h-3 text-gray-400" />
             </button>
           )}
         </div>
         
-        {/* Search results count */}
         {searchQuery && (
           <div className="text-xs text-gray-500 mt-1 px-1">
             {searchResults.length} result{searchResults.length !== 1 ? 's' : ''}
@@ -93,18 +93,20 @@ export function ConversationList() {
       </div>
 
       {/* Conversations list */}
-      <div className="conversation-list flex-1 overflow-y-auto p-2 space-y-2">
+      <div className="conversation-list flex-1 overflow-y-auto space-y-1 scrollbar-thin">
         {displayConversations.length === 0 ? (
-          <div className="conversation-empty py-8 px-4 text-center text-gray-500 text-sm">
+          <div className="py-8 px-4 text-center text-gray-500 text-sm">
             {searchQuery ? (
               <>
+                <MessageSquare className="w-10 h-10 mx-auto mb-2 opacity-50" />
                 <p className="font-medium">No conversations found</p>
-                <p className="text-xs mt-1">Try a different search term</p>
+                <p className="text-xs mt-1">Try a different search</p>
               </>
             ) : (
               <>
+                <MessageSquare className="w-10 h-10 mx-auto mb-2 opacity-50" />
                 <p className="font-medium">No conversations yet</p>
-                <p className="text-xs mt-1">Start a new conversation to get started</p>
+                <p className="text-xs mt-1">Start chatting to begin</p>
               </>
             )}
           </div>
@@ -114,14 +116,14 @@ export function ConversationList() {
               key={conv.id}
               onClick={() => handleSelect(conv.id)}
               className={cn(
-                'conversation-item group p-3 rounded-lg border cursor-pointer transition-all',
+                'conversation-item group relative p-3 rounded-lg cursor-pointer transition-all',
                 currentConversationId === conv.id
-                  ? 'bg-primary-50 border-primary-500'
-                  : 'bg-white border-gray-200 hover:bg-gray-50 hover:border-primary-300'
+                  ? 'bg-gray-800 border border-blue-500'
+                  : 'bg-gray-800/50 border border-transparent hover:bg-gray-800 hover:border-gray-700'
               )}
             >
               {/* Header */}
-              <div className="conversation-item-header flex justify-between items-start mb-1">
+              <div className="flex justify-between items-start mb-1">
                 {editingId === conv.id ? (
                   <input
                     type="text"
@@ -132,45 +134,48 @@ export function ConversationList() {
                       if (e.key === 'Escape') handleCancelEdit()
                     }}
                     onBlur={() => handleSaveEdit(conv.id)}
-                    className="flex-1 text-sm font-semibold border border-primary-500 rounded px-2 py-1 focus:outline-none"
+                    className="flex-1 text-sm font-semibold bg-gray-700 border border-blue-500 rounded px-2 py-1 focus:outline-none text-white"
                     autoFocus
                     onClick={(e) => e.stopPropagation()}
                   />
                 ) : (
-                  <h3 className="conversation-title font-semibold text-sm text-gray-900 truncate flex-1">
+                  <h3 className="text-sm font-semibold text-white truncate flex-1 pr-2">
                     {conv.title}
                   </h3>
                 )}
                 
-                <span className="conversation-date text-xs text-gray-500 ml-2 flex-shrink-0">
+                <span className="text-xs text-gray-500 flex-shrink-0 ml-2">
                   {formatDate(conv.updated_at || conv.created_at)}
                 </span>
               </div>
 
               {/* Preview */}
               {conv.preview && (
-                <p className="conversation-preview text-xs text-gray-600 truncate">
+                <p className="text-xs text-gray-400 truncate mb-1">
                   {conv.preview}
                 </p>
               )}
 
               {/* Message count */}
-              <div className="text-xs text-gray-400 mt-1">
+              <div className="text-xs text-gray-500">
                 {conv.message_count} message{conv.message_count !== 1 ? 's' : ''}
               </div>
 
-              {/* Actions */}
-              <div className="conversation-actions absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              {/* Action buttons - FIXED: Only show on hover, don't interfere with parent */}
+              <div 
+                className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-gray-900 rounded-md p-1"
+                onClick={(e) => e.stopPropagation()}
+              >
                 <button
                   onClick={(e) => handleStartEdit(e, conv.id, conv.title)}
-                  className="conversation-edit w-6 h-6 rounded bg-blue-500 text-white hover:bg-blue-600 flex items-center justify-center transition-colors"
+                  className="w-6 h-6 rounded bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center transition-colors"
                   title="Edit title"
                 >
                   <Edit2 className="w-3 h-3" />
                 </button>
                 <button
                   onClick={(e) => handleDelete(e, conv.id)}
-                  className="conversation-delete w-6 h-6 rounded bg-red-500 text-white hover:bg-red-600 flex items-center justify-center transition-colors"
+                  className="w-6 h-6 rounded bg-red-600 hover:bg-red-700 text-white flex items-center justify-center transition-colors"
                   title="Delete"
                 >
                   <Trash2 className="w-3 h-3" />
