@@ -28,7 +28,6 @@ export function MessageList({ messages, conversationId }: MessageListProps) {
         <MessageBubble 
           key={message.id} 
           message={message}
-          conversationId={conversationId}
         />
       ))}
       
