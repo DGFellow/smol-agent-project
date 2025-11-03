@@ -5,11 +5,10 @@
  */
 
 import { useState, useCallback, useRef, useEffect } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tantml:query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api, { conversationApi, messageApi, getErrorMessage } from '@/lib/api'
 import { queryKeys } from '@/lib/queryClient'
 import { useAppStore } from '@/store/appStore'
-import axios from 'axios'
 import type { Message, MessageRequest, Conversation, ConversationResponse } from '@/types'
 
 // Toast notification helper
@@ -24,6 +23,11 @@ interface ThinkingStep {
   content: string
   step: number
   timestamp: number
+}
+
+interface StreamResult {
+  content: string
+  newConversationId?: number
 }
 
 export function useChat(conversationId?: number | null) {
@@ -83,7 +87,7 @@ export function useChat(conversationId?: number | null) {
   // ============================================
   
   const sendMutation = useMutation({
-    mutationFn: async (request: MessageRequest) => {
+    mutationFn: async (request: MessageRequest): Promise<StreamResult> => {
       console.log('mutationFn started with request:', request)
       try {
         console.log('API base URL:', api.defaults.baseURL)
@@ -150,7 +154,7 @@ export function useChat(conversationId?: number | null) {
                   case 'metadata':
                     if (event.conversation_id && !conversationId) {
                       newConversationId = event.conversation_id
-                      setCurrentConversationId(newConversationId)
+                      setCurrentConversationId(newConversationId || null)
                       setViewMode('chat')
                     }
                     break
@@ -173,7 +177,7 @@ export function useChat(conversationId?: number | null) {
         throw error
       }
     },
-    onMutate: async (request) => {
+    onMutate: async (request: MessageRequest) => {
       if (conversationId) {
         // Optimistic update for existing conversation
         const optimisticMessage: Message = {
@@ -192,7 +196,7 @@ export function useChat(conversationId?: number | null) {
 
         queryClient.setQueryData<ConversationResponse>(
           queryKeys.conversations.detail(conversationId),
-          (old) => ({
+          (old: ConversationResponse | undefined) => ({
             conversation: {
               ...old!.conversation,
               messages: [...(old?.conversation.messages || []), optimisticMessage],
@@ -202,9 +206,8 @@ export function useChat(conversationId?: number | null) {
 
         return { previous }
       }
-      return undefined
     },
-    onSuccess: (result) => {
+    onSuccess: (result: StreamResult) => {
       const effectiveId = result.newConversationId || conversationId
       if (effectiveId) {
         // Add assistant message optimistically
@@ -222,7 +225,7 @@ export function useChat(conversationId?: number | null) {
 
         queryClient.setQueryData<ConversationResponse>(
           queryKeys.conversations.detail(effectiveId),
-          (old) => ({
+          (old: ConversationResponse | undefined) => ({
             conversation: {
               ...old!.conversation,
               messages: [...(old?.conversation.messages || []), assistantMessage],
@@ -242,7 +245,7 @@ export function useChat(conversationId?: number | null) {
       setThinkingDuration(undefined)
       setThinking(false)
     },
-    onError: (error, _variables, context) => {
+    onError: (error: Error, _variables: MessageRequest, context?: { previous?: ConversationResponse }) => {
       streamingRef.current = false
       setThinking(false)
       setStreamingMessage('')
@@ -264,7 +267,7 @@ export function useChat(conversationId?: number | null) {
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => conversationApi.delete(id),
-    onSuccess: (_data, deletedId) => {
+    onSuccess: (_data: unknown, deletedId: number) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.conversations.all })
       if (conversationId === deletedId) {
         setCurrentConversationId(null)
@@ -272,7 +275,7 @@ export function useChat(conversationId?: number | null) {
       }
       showToast('Conversation deleted', 'success')
     },
-    onError: (error) => showToast(getErrorMessage(error), 'error'),
+    onError: (error: Error) => showToast(getErrorMessage(error), 'error'),
   })
 
   // ============================================
@@ -289,7 +292,7 @@ export function useChat(conversationId?: number | null) {
       }
       showToast('Title updated', 'success')
     },
-    onError: (error) => showToast(getErrorMessage(error), 'error'),
+    onError: (error: Error) => showToast(getErrorMessage(error), 'error'),
   })
 
   // ============================================
@@ -302,7 +305,7 @@ export function useChat(conversationId?: number | null) {
 
       queryClient.setQueryData<ConversationResponse>(
         queryKeys.conversations.detail(conversationId),
-        (old) => {
+        (old: ConversationResponse | undefined) => {
           if (!old) return old
           return {
             ...old,
