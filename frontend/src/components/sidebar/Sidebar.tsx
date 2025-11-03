@@ -1,6 +1,6 @@
-// Sidebar.tsx
+// src/components/sidebar/Sidebar.tsx
 import { useEffect } from 'react'
-import { Menu, MessageSquarePlus, MessageSquare } from 'lucide-react'
+import { Menu, MessageSquarePlus } from 'lucide-react'
 import { useAppStore } from '@/store/appStore'
 import { useAuthStore } from '@/store/authStore'
 import { useChat } from '@/hooks/useChat'
@@ -21,7 +21,6 @@ export function Sidebar() {
     }
   }
 
-  // Close sidebar on escape
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && sidebarExpanded) {
@@ -34,10 +33,10 @@ export function Sidebar() {
 
   return (
     <>
-      {/* Mobile/Tablet overlay - only < 1024px */}
+      {/* Overlay for mobile/tablet only */}
       {sidebarExpanded && (
         <div
-          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          className="fixed inset-0 bg-black/50 z-40 md:hidden"
           onClick={() => setSidebarExpanded(false)}
         />
       )}
@@ -45,24 +44,25 @@ export function Sidebar() {
       {/* Sidebar container */}
       <div
         className={cn(
-          // Mobile/Tablet: fixed overlay
-          'fixed lg:relative',
-          'top-0 h-screen z-50 lg:z-auto',
+          'fixed md:relative',
+          'top-0 h-screen z-50 md:z-auto',
           'bg-gray-900 text-white flex flex-col',
           'transition-all duration-300 ease-in-out',
-          // Width
-          sidebarExpanded ? 'w-64' : 'w-12',
-          // Mobile translation
-          'lg:translate-x-0',
-          sidebarExpanded ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+          'border-r border-white/10',
+          // Width: Thicker as requested
+          sidebarExpanded ? 'w-72' : 'w-16',
+          // Mobile: slide in/out
+          'md:translate-x-0',
+          sidebarExpanded ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
         )}
       >
-        {/* Collapsed state - always visible, just toggle button */}
+        {/* Collapsed state */}
         {!sidebarExpanded && (
-          <div className="flex flex-col items-center gap-2 py-2 h-full">
+          <div className="flex flex-col items-center gap-4 py-4 h-full">
+            {/* Toggle button - FIXED: Added z-index and pointer-events */}
             <button
               onClick={toggleSidebar}
-              className="p-2 hover:bg-gray-800 rounded-lg transition-colors"
+              className="relative z-10 p-2 hover:bg-gray-800 rounded-lg transition-colors"
               aria-label="Expand sidebar"
               title="Expand sidebar"
             >
@@ -78,15 +78,13 @@ export function Sidebar() {
               <MessageSquarePlus className="w-5 h-5" />
             </button>
             
-            {/* Spacer */}
             <div className="flex-1" />
             
-            {/* Account avatar in collapsed mode */}
             {user && (
               <button
                 onClick={toggleSidebar}
                 className="p-1 hover:bg-gray-800 rounded-lg transition-colors"
-                title="Open sidebar for account menu"
+                title="Open sidebar"
               >
                 <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary-500 to-secondary-500 text-white flex items-center justify-center font-bold text-xs">
                   {getInitials(user.username)}
@@ -99,9 +97,9 @@ export function Sidebar() {
         {/* Expanded state */}
         {sidebarExpanded && (
           <>
-            {/* Header with just toggle */}
-            <div className="flex items-center justify-between p-2 border-b border-gray-700">
-              <span className="text-sm font-semibold px-2">Smolagent</span>
+            {/* Header */}
+            <div className="flex items-center justify-between p-4 border-b border-white/10">
+              <span className="text-base font-semibold px-2">Smolagent</span>
               <button
                 onClick={toggleSidebar}
                 className="p-2 hover:bg-gray-800 rounded-lg transition-colors"
@@ -112,10 +110,10 @@ export function Sidebar() {
             </div>
 
             {/* New Chat Button */}
-            <div className="p-2 border-b border-gray-700">
+            <div className="p-3 border-b border-white/10">
               <button
                 onClick={startNewConversation}
-                className="w-full flex items-center gap-3 px-3 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors"
+                className="w-full flex items-center gap-3 px-4 py-3 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors"
               >
                 <MessageSquarePlus className="w-5 h-5" />
                 <span className="text-sm font-medium">New chat</span>
@@ -123,14 +121,13 @@ export function Sidebar() {
             </div>
 
             {/* Conversations List */}
-            <div className="flex-1 overflow-y-auto py-2 px-2">
+            <div className="flex-1 overflow-y-auto py-3 px-3 scrollbar-thin">
               {isLoading ? (
                 <div className="text-center text-gray-400 py-8 text-sm">
                   Loading...
                 </div>
               ) : conversations.length === 0 ? (
                 <div className="text-center text-gray-400 py-8 px-4">
-                  <MessageSquare className="w-12 h-12 mx-auto mb-3 opacity-50" />
                   <p className="text-sm">No conversations yet</p>
                   <p className="text-xs mt-1">Start a new chat to begin</p>
                 </div>
@@ -140,7 +137,7 @@ export function Sidebar() {
             </div>
 
             {/* Account Button */}
-            <div className="p-2 border-t border-gray-700">
+            <div className="p-3 border-t border-white/10">
               <AccountButton />
             </div>
           </>
