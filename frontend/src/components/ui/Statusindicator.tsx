@@ -17,7 +17,6 @@ export function StatusIndicator() {
           'status-dot w-2.5 h-2.5 rounded-full',
           statusType === 'loading' && 'bg-yellow-500 status-pulse',
           statusType === 'ready' && 'bg-green-500',
-          statusType === 'error' && 'bg-red-500'
         )}
       />
       <span id="status-text">{status}</span>

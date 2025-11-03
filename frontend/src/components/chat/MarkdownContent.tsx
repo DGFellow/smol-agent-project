@@ -16,7 +16,7 @@ function parseMarkdown(text: string): string {
   let html = text
 
   // Code blocks with language
-  html = html.replace(/```(\w+)?\n([\s\S]*?)```/g, (match, lang, code) => {
+  html = html.replace(/```(\w+)?\n([\s\S]*?)```/g, (_, lang, code) => { // Changed to _
     const language = lang || 'code'
     const escapedCode = escapeHtml(code.trim())
     return `

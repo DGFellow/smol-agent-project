@@ -9,14 +9,29 @@ export function LoginPage() {
   const [credentials, setCredentials] = useState<LoginCredentials>({
     username: '',
     password: '',
+    two_factor_code: '',
   })
+  const [show2FA, setShow2FA] = useState(false)
+  const [twoFAMethod, setTwoFAMethod] = useState<'email' | 'sms' | null>(null)
   const { login, isLoading } = useAuth()
   const { error, clearError } = useAuthStore()
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
     clearError()
-    login(credentials)
+    try {
+      const res = await login(credentials)
+      if (res.requires_2fa) {
+        setShow2FA(true)
+        // Fix: Type guard for method
+        const method = res.method === 'sms' ? 'sms' : 'email'
+        setTwoFAMethod(method)
+      } else {
+        // Success - navigation handled by ProtectedRoute or similar
+      }
+    } catch (err) {
+      // Error handled by setError in useAuth
+    }
   }
 
   const handleChange = (field: keyof LoginCredentials) => (
@@ -55,30 +70,58 @@ export function LoginPage() {
             placeholder="Enter your username"
             required
             autoComplete="username"
-            disabled={isLoading}
+            disabled={isLoading || show2FA}
           />
         </div>
 
         {/* Password */}
-        <div>
-          <label
-            htmlFor="password"
-            className="block text-sm font-semibold text-gray-700 mb-2"
-          >
-            Password
-          </label>
-          <input
-            id="password"
-            type="password"
-            value={credentials.password}
-            onChange={handleChange('password')}
-            className="input"
-            placeholder="Enter your password"
-            required
-            autoComplete="current-password"
-            disabled={isLoading}
-          />
-        </div>
+        {!show2FA && (
+          <div>
+            <label
+              htmlFor="password"
+              className="block text-sm font-semibold text-gray-700 mb-2"
+            >
+              Password
+            </label>
+            <input
+              id="password"
+              type="password"
+              value={credentials.password}
+              onChange={handleChange('password')}
+              className="input"
+              placeholder="Enter your password"
+              required
+              autoComplete="current-password"
+              disabled={isLoading}
+            />
+          </div>
+        )}
+
+        {/* 2FA Code */}
+        {show2FA && (
+          <div>
+            <label
+              htmlFor="two_factor_code"
+              className="block text-sm font-semibold text-gray-700 mb-2"
+            >
+              Verification Code
+            </label>
+            <p className="text-sm text-gray-600 mb-2">
+              Enter the code sent to your {twoFAMethod}.
+            </p>
+            <input
+              id="two_factor_code"
+              type="text"
+              value={credentials.two_factor_code || ''}
+              onChange={handleChange('two_factor_code')}
+              className="input"
+              placeholder="Enter 6-digit code"
+              required
+              maxLength={6}
+              disabled={isLoading}
+            />
+          </div>
+        )}
 
         {/* Error message */}
         {error && (
@@ -101,7 +144,7 @@ export function LoginPage() {
           ) : (
             <>
               <LogIn className="w-5 h-5" />
-              Sign in
+              {show2FA ? 'Verify Code' : 'Sign in'}
             </>
           )}
         </button>

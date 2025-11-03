@@ -22,6 +22,7 @@ def generate_token(user_id: int, username: str, expires_in_hours: int = None) ->
 
 def decode_token(token: str) -> dict:
     """Decode and verify JWT token"""
+    print(f"Decoding token: {token} with secret: {Config.JWT_SECRET}")
     try:
         payload = jwt.decode(token, Config.JWT_SECRET, algorithms=['HS256'])
         return payload
@@ -29,6 +30,7 @@ def decode_token(token: str) -> dict:
         return None
     except jwt.InvalidTokenError:
         return None
+    
 
 def token_required(f):
     """Decorator to require authentication (your existing implementation)"""

@@ -1,3 +1,4 @@
+// Footer.tsx
 export function Footer() {
   return (
     <footer className="site-footer bg-transparent">

@@ -32,7 +32,9 @@ class Conversation:
                 content TEXT NOT NULL,
                 agent TEXT,
                 model TEXT,
+                reaction TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (conversation_id) REFERENCES conversations (id) ON DELETE CASCADE
             )
         ''')

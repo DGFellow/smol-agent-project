@@ -14,8 +14,6 @@ export interface User {
   updated_at: string
 }
 
-export type { User } // Explicit re-export
-
 export interface LoginCredentials {
   username: string
   password: string
@@ -52,6 +50,7 @@ export interface Message {
   content: string
   agent?: string | null
   model?: string | null
+  reaction?: 'like' | 'dislike' | null
   created_at: string
 }
 
@@ -83,6 +82,8 @@ export interface ConversationResponse {
 export interface MessageRequest {
   message: string
   conversation_id?: number | null
+  stream?: boolean
+  files?: string[]  // Added for file IDs
 }
 
 export interface MessageResponse {

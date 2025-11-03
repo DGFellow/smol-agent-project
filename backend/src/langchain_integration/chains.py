@@ -3,7 +3,7 @@ LangChain Integration - Chains
 Wraps your existing models with LangChain for advanced orchestration
 """
 
-from typing import List, Tuple, Dict, Any
+from typing import List, Tuple, Dict, Any, Iterator
 
 # LangChain 0.2+ prompt & message types
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
@@ -20,15 +20,28 @@ import torch
 
 class _DictReturningChain:
     """
-    Tiny adapter to keep old `.invoke(...) -> {'text': str}` behavior
-    while using new Runnable pipelines under the hood.
+    Adapter that provides both .invoke() and .stream() methods
+    for backward compatibility with dict return format
     """
     def __init__(self, runnable):
         self.runnable = runnable
 
     def invoke(self, inputs: Dict[str, Any]) -> Dict[str, str]:
+        """Synchronous invocation returning dict"""
         text = self.runnable.invoke(inputs)
         return {"text": text}
+    
+    def stream(self, inputs: Dict[str, Any]) -> Iterator[str]:
+        """Streaming generator yielding text chunks"""
+        try:
+            # Stream from the underlying runnable
+            for chunk in self.runnable.stream(inputs):
+                if chunk:  # Only yield non-empty chunks
+                    yield chunk
+        except AttributeError:
+            # Fallback if stream not available - invoke and return full text
+            result = self.runnable.invoke(inputs)
+            yield result
 
 
 class QwenLangChain:

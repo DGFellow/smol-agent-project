@@ -1,17 +1,25 @@
+// Sidebar.tsx
 import { useEffect } from 'react'
 import { Menu, MessageSquarePlus, MessageSquare } from 'lucide-react'
 import { useAppStore } from '@/store/appStore'
 import { useAuthStore } from '@/store/authStore'
-import { useConversations, useConversationActions } from '@/hooks/useConversations'
+import { useChat } from '@/hooks/useChat'
 import { ConversationList } from './ConversationList'
 import { AccountButton } from './AccountButton'
 import { getInitials, cn } from '@/lib/utils'
 
 export function Sidebar() {
-  const { sidebarExpanded, toggleSidebar, setSidebarExpanded } = useAppStore()
+  const { sidebarExpanded, toggleSidebar, setSidebarExpanded, setCurrentConversationId, setViewMode } = useAppStore()
   const { user } = useAuthStore()
-  const { startNewConversation } = useConversationActions()
-  const { conversations, isLoading } = useConversations({ limit: 50 })
+  const { conversations, isLoadingConversations: isLoading } = useChat()
+  
+  const startNewConversation = () => {
+    setCurrentConversationId(null)
+    setViewMode('hero')
+    if (!sidebarExpanded) {
+      setSidebarExpanded(true)
+    }
+  }
 
   // Close sidebar on escape
   useEffect(() => {
@@ -127,7 +135,7 @@ export function Sidebar() {
                   <p className="text-xs mt-1">Start a new chat to begin</p>
                 </div>
               ) : (
-                <ConversationList conversations={conversations} />
+                <ConversationList />
               )}
             </div>
 

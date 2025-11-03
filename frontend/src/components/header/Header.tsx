@@ -1,11 +1,12 @@
+// Header.tsx
 import { Menu } from 'lucide-react'
 import { useAppStore } from '@/store/appStore'
-import { useConversation } from '@/hooks/useConversations'
+import { useChat } from '@/hooks/useChat'
 import { StatusIndicator } from '@/components/ui/StatusIndicator'
 
 export function Header() {
   const { toggleSidebar, currentConversationId, viewMode } = useAppStore()
-  const { conversation } = useConversation(currentConversationId)
+  const { conversation } = useChat(currentConversationId)
 
   // Only show title when in chat view and conversation exists
   const showTitle = viewMode === 'chat' && conversation && conversation.title

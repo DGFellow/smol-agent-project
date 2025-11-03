@@ -1,14 +1,14 @@
 import { useEffect } from 'react'
 import { useAppStore } from '@/store/appStore'
 import { useAuthStore } from '@/store/authStore'
-import { useConversation } from '@/hooks/useConversations'
+import { useChat } from '@/hooks/useChat'
 import { HeroView } from '@/components/chat/HeroView'
 import { ChatView } from '@/components/chat/ChatView'
 
 export function ChatPage() {
   const { viewMode, currentConversationId, setViewMode } = useAppStore()
   const { user } = useAuthStore()
-  const { conversation, isLoading } = useConversation(currentConversationId)
+  const { conversation, isLoadingConversation: isLoading } = useChat(currentConversationId)
 
   // Switch to chat view when conversation exists
   useEffect(() => {

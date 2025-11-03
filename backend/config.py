@@ -77,6 +77,9 @@ class Config:
     # CORS
     CORS_ORIGINS = [FRONTEND_URL]
     
+    # LangChain toggle
+    USE_LANGCHAIN = os.getenv("USE_LANGCHAIN", "true").lower() == "true"
+    
     @classmethod
     def validate(cls):
         """Validate critical configuration"""

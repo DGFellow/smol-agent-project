@@ -1,50 +1,45 @@
-import { Bot, User } from 'lucide-react'
-import { MarkdownContent } from './MarkdownContent'
-import { cn } from '@/lib/utils'
-import type { Message } from '@/types'
+// src/components/chat/MessageBubble.tsx
+import React from 'react';
+import { ThinkingIndicator } from './ThinkingIndicator';
+import { MarkdownContent } from './MarkdownContent';
 
 interface MessageBubbleProps {
-  message: Message
+  message: {
+    role: 'user' | 'assistant';
+    content: string;
+    thinking?: {
+      steps: Array<{ content: string; step: number; timestamp: number }>;
+      duration: number;
+    };
+  };
+  isStreaming?: boolean;
 }
 
-export function MessageBubble({ message }: MessageBubbleProps) {
-  const isUser = message.role === 'user'
+export const MessageBubble: React.FC<MessageBubbleProps> = ({ 
+  message, 
+  isStreaming 
+}) => {
+  const isUser = message.role === 'user';
 
   return (
-    <div
-      className={cn(
-        'message-bubble animate-fade-in',
-        isUser ? 'message-user ml-auto max-w-[80%]' : 'message-assistant mr-auto max-w-[80%]'
+    <div className={`message-bubble ${isUser ? 'user' : 'assistant'}`}>
+      {/* Show thinking indicator for assistant messages */}
+      {!isUser && message.thinking && (
+        <ThinkingIndicator
+          steps={message.thinking.steps}
+          isComplete={!isStreaming}
+          duration={message.thinking.duration}
+        />
       )}
-    >
-      {/* Message Label */}
-      <div className="message-label flex items-center gap-2 mb-2 text-sm font-semibold">
-        {isUser ? (
-          <>
-            <User className="w-4 h-4" />
-            <span>You</span>
-          </>
-        ) : (
-          <>
-            <Bot className="w-4 h-4" />
-            <span>Assistant</span>
-            {message.model && (
-              <span className="text-xs font-normal text-gray-500">
-                ({message.agent || 'chat'})
-              </span>
-            )}
-          </>
-        )}
-      </div>
 
-      {/* Message Content */}
-      <div className={cn('text-sm leading-relaxed', isUser ? 'text-white' : 'text-gray-900')}>
+      {/* Message content */}
+      <div className={`message-content ${isUser ? 'user-message' : 'assistant-message'}`}>
         {isUser ? (
-          <p className="whitespace-pre-wrap">{message.content}</p>
+          <p>{message.content}</p>
         ) : (
           <MarkdownContent content={message.content} />
         )}
       </div>
     </div>
-  )
-}
+  );
+};

@@ -6,19 +6,19 @@ import { useAuthStore } from '@/store/authStore'
 export function useAuth() {
   const [isLoading, setIsLoading] = useState(false)
 
-  // Zustand selectors (keeps components from over-subscribing)
+  // Zustand selectors
   const setError = useAuthStore((s) => s.setError)
   const clearError = useAuthStore((s) => s.clearError)
-  const setUser = useAuthStore((s) => s.setUser)
-  const setToken = useAuthStore((s) => s.setToken)
+  const loginAction = useAuthStore((s) => s.login)  // ← Use atomic login
+  const logoutAction = useAuthStore((s) => s.logout)
 
   const register = useCallback(async (data: RegisterData): Promise<AuthResponse> => {
     setIsLoading(true)
     clearError()
     try {
       const res = await authApi.register(data)
-      setUser(res.user)
-      setToken(res.token)
+      // Use atomic login action for registration too
+      loginAction(res.token, res.user)
       return res
     } catch (e: any) {
       setError(e?.response?.data?.error || e?.message || 'Registration failed')
@@ -26,15 +26,19 @@ export function useAuth() {
     } finally {
       setIsLoading(false)
     }
-  }, [clearError, setError, setUser, setToken])
+  }, [clearError, setError, loginAction])
 
-  const login = useCallback(async (creds: { username: string; password: string }) => {
+  const login = useCallback(async (creds: { username: string; password: string; two_factor_code?: string }): Promise<AuthResponse> => {
     setIsLoading(true)
     clearError()
     try {
       const res = await authApi.login(creds)
-      setUser(res.user)
-      setToken(res.token)
+      if (res.requires_2fa) {
+        // Return response for 2FA handling in component
+        return res as AuthResponse & { requires_2fa: true; method: string }
+      }
+      // ✅ FIX: Use atomic login action that sets both token and user together
+      loginAction(res.token, res.user)
       return res
     } catch (e: any) {
       setError(e?.response?.data?.error || e?.message || 'Login failed')
@@ -42,19 +46,18 @@ export function useAuth() {
     } finally {
       setIsLoading(false)
     }
-  }, [clearError, setError, setUser, setToken])
+  }, [clearError, setError, loginAction])
 
   const logout = useCallback(() => {
-    authApi.logout()
-  }, [])
+    logoutAction()
+  }, [logoutAction])
 
-  // IMPORTANT: These must proxy the API *verbatim* so UI can read `available`
   const checkUsername = useCallback(async (username: string): Promise<FieldValidation> => {
-    return authApi.checkUsername(username) // => { available: boolean, message? }
+    return authApi.checkUsername(username)
   }, [])
 
   const checkEmail = useCallback(async (email: string): Promise<FieldValidation> => {
-    return authApi.checkEmail(email) // => { available: boolean, message? }
+    return authApi.checkEmail(email)
   }, [])
 
   return { register, login, logout, checkUsername, checkEmail, isLoading }
