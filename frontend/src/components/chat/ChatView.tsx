@@ -1,3 +1,16 @@
+// src/components/chat/ChatView.tsx - FIXED STREAMING
+import { useEffect, useRef } from 'react';
+import { Loader2 } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { MessageList } from './MessageList';
+import { useChat } from '@/hooks/useChat';
+import type { Conversation } from '@/types';
+
+interface ChatViewProps {
+  conversation: Conversation | null;
+  isLoading: boolean;
+}
+
 export function ChatView({ conversation, isLoading }: ChatViewProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { isStreaming, streamingMessage, thinkingSteps } = useChat(conversation?.id);
@@ -52,19 +65,19 @@ export function ChatView({ conversation, isLoading }: ChatViewProps) {
       <div className="flex-1 overflow-y-auto scrollbar-thin">
         <div className="max-w-4xl mx-auto px-6 py-6">
           {conversation.messages && conversation.messages.length > 0 ? (
-            <MessageList 
-              messages={conversation.messages} 
+            <MessageList
+              messages={conversation.messages}
               conversationId={conversation.id}
-              streamingMessage={streamingMessage}  {/* ✅ Pass streaming text */}
-              isStreaming={isStreaming}            {/* ✅ Pass streaming state */}
-              thinkingSteps={thinkingSteps}        {/* ✅ Pass thinking steps */}
+              streamingMessage={streamingMessage}
+              isStreaming={isStreaming}
+              thinkingSteps={thinkingSteps}
             />
           ) : (
             <div className="text-center text-white/50 py-12">
               <p className="text-lg">Start the conversation...</p>
             </div>
           )}
-          
+         
           <div ref={messagesEndRef} />
         </div>
       </div>
