@@ -120,7 +120,9 @@ export function ChatView({ conversation, isLoading }: ChatViewProps) {
           {conversation.messages && conversation.messages.length > 0 ? (
             <MessageList 
               messages={conversation.messages} 
-              conversationId={conversation.id} 
+              conversationId={conversation.id}
+              streamingMessage={streamingMessage}
+              isStreaming={isStreaming}
             />
           ) : (
             <div className="text-center text-white/50 py-12">

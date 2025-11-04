@@ -4,11 +4,13 @@
  * Reactions always visible
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { User, Bot, Copy, ThumbsUp, ThumbsDown } from 'lucide-react';
+import { User, Bot } from 'lucide-react';
 import { ThinkingIndicator } from './ThinkingIndicator';
 import { MarkdownContent } from './MarkdownContent';
+import { MessageActions } from './MessageActions';
+import { useChat } from '@/hooks/useChat';
 
 interface MessageBubbleProps {
   message: {
@@ -21,14 +23,24 @@ interface MessageBubbleProps {
     };
     reaction?: 'like' | 'dislike' | null;
   };
+  conversationId?: number;
   isStreaming?: boolean;
+  streamingContent?: string; // ⬅️ ADD THIS
 }
 
 export const MessageBubble: React.FC<MessageBubbleProps> = ({ 
-  message, 
-  isStreaming = false
+  message,
+  conversationId,
+  isStreaming = false,
+  streamingContent = '' // ⬅️ ADD THIS
 }) => {
   const isUser = message.role === 'user';
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedContent, setEditedContent] = useState(message.content);
+  const { reactToMessage, regenerateMessage } = useChat(conversationId);
+
+  // ⬅️ USE STREAMING CONTENT IF AVAILABLE
+  const displayContent = isStreaming && streamingContent ? streamingContent : message.content;
 
   const messageVariants = {
     hidden: { 
@@ -48,7 +60,31 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
   };
 
   const handleCopy = async () => {
-    await navigator.clipboard.writeText(message.content);
+    const textToCopy = isStreaming && streamingContent ? streamingContent : message.content;
+    await navigator.clipboard.writeText(textToCopy);
+  };
+
+  const handleEdit = () => {
+    setIsEditing(true);
+  };
+
+  const handleSaveEdit = () => {
+    // TODO: Implement edit functionality
+    console.log('Save edit:', editedContent);
+    setIsEditing(false);
+  };
+
+  const handleCancelEdit = () => {
+    setEditedContent(message.content);
+    setIsEditing(false);
+  };
+
+  const handleRegenerate = () => {
+    regenerateMessage?.(message.id);
+  };
+
+  const handleReact = (reaction: 'like' | 'dislike' | null) => {
+    reactToMessage(message.id, reaction);
   };
 
   return (
@@ -69,21 +105,47 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
                 You
               </div>
               <div className="bg-blue-600/80 rounded-2xl px-4 py-3 max-w-[80%]">
-                <p className="text-white text-[15px] leading-relaxed whitespace-pre-wrap">
-                  {message.content}
-                </p>
+                {isEditing ? (
+                  <div className="space-y-2">
+                    <textarea
+                      value={editedContent}
+                      onChange={(e) => setEditedContent(e.target.value)}
+                      className="w-full bg-white/10 text-white rounded-lg px-3 py-2 min-h-[100px] focus:outline-none focus:ring-2 focus:ring-white/50"
+                      autoFocus
+                    />
+                    <div className="flex gap-2 justify-end">
+                      <button
+                        onClick={handleCancelEdit}
+                        className="px-3 py-1 text-sm text-white/70 hover:text-white transition-colors"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={handleSaveEdit}
+                        className="px-3 py-1 text-sm bg-white/20 hover:bg-white/30 rounded-md transition-colors"
+                      >
+                        Save & Resend
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-white text-[15px] leading-relaxed whitespace-pre-wrap">
+                    {message.content}
+                  </p>
+                )}
               </div>
               
-              {/* Actions - Always visible */}
-              <div className="flex items-center gap-2 mt-2">
-                <button
-                  onClick={handleCopy}
-                  className="p-1.5 rounded-md hover:bg-white/10 text-white/60 hover:text-white transition-all"
-                  title="Copy"
-                >
-                  <Copy className="w-3.5 h-3.5" />
-                </button>
-              </div>
+              {/* Actions */}
+              {!isEditing && (
+                <MessageActions
+                  messageId={message.id}
+                  role={message.role}
+                  content={message.content}
+                  reaction={message.reaction}
+                  onCopy={handleCopy}
+                  onEdit={handleEdit}
+                />
+              )}
             </div>
             
             <div className="flex-shrink-0">
@@ -117,12 +179,11 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
                 </div>
               )}
 
-              {/* Message Content */}
+              {/* Message Content - STREAMING SUPPORT */}
               <div className="text-white/90 text-[15px] leading-relaxed">
-                {message.content ? (
-                  <MarkdownContent content={message.content} />
-                ) : null}
+                <MarkdownContent content={displayContent} />
                 
+                {/* Cursor when streaming */}
                 {isStreaming && (
                   <motion.span
                     className="inline-block w-2 h-4 bg-green-400 ml-1 rounded-sm"
@@ -132,28 +193,16 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
                 )}
               </div>
 
-              {/* Actions - Always visible */}
-              <div className="flex items-center gap-2 mt-3">
-                <button
-                  onClick={handleCopy}
-                  className="p-1.5 rounded-md hover:bg-white/10 text-white/60 hover:text-white transition-all"
-                  title="Copy"
-                >
-                  <Copy className="w-3.5 h-3.5" />
-                </button>
-                <button
-                  className="p-1.5 rounded-md hover:bg-white/10 text-white/60 hover:text-white transition-all"
-                  title="Like"
-                >
-                  <ThumbsUp className="w-3.5 h-3.5" />
-                </button>
-                <button
-                  className="p-1.5 rounded-md hover:bg-white/10 text-white/60 hover:text-white transition-all"
-                  title="Dislike"
-                >
-                  <ThumbsDown className="w-3.5 h-3.5" />
-                </button>
-              </div>
+              {/* Actions */}
+              <MessageActions
+                messageId={message.id}
+                role={message.role}
+                content={message.content}
+                reaction={message.reaction}
+                onCopy={handleCopy}
+                onRegenerate={handleRegenerate}
+                onReact={handleReact}
+              />
             </div>
           </div>
         )}

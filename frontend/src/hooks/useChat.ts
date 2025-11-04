@@ -184,33 +184,35 @@ export function useChat(conversationId?: number | null) {
       }
     },
     onMutate: async (request: MessageRequest) => {
-      if (conversationId) {
-        const optimisticMessage: Message = {
-          id: Date.now(),
-          content: request.message,
-          role: 'user',
-          created_at: new Date().toISOString(),
-          reaction: null,
-        }
-
-        await queryClient.cancelQueries({ queryKey: queryKeys.conversations.detail(conversationId) })
-
-        const previous = queryClient.getQueryData<ConversationResponse>(
-          queryKeys.conversations.detail(conversationId)
-        )
-
-        queryClient.setQueryData<ConversationResponse>(
-          queryKeys.conversations.detail(conversationId),
-          (old: ConversationResponse | undefined) => ({
-            conversation: {
-              ...old!.conversation,
-              messages: [...(old?.conversation.messages || []), optimisticMessage],
-            },
-          })
-        )
-
-        return { previous }
+      if (!conversationId) {
+        return { previous: undefined }
       }
+
+      const optimisticMessage: Message = {
+        id: Date.now(),
+        content: request.message,
+        role: 'user',
+        created_at: new Date().toISOString(),
+        reaction: null,
+      }
+
+      await queryClient.cancelQueries({ queryKey: queryKeys.conversations.detail(conversationId) })
+
+      const previous = queryClient.getQueryData<ConversationResponse>(
+        queryKeys.conversations.detail(conversationId)
+      )
+
+      queryClient.setQueryData<ConversationResponse>(
+        queryKeys.conversations.detail(conversationId),
+        (old: ConversationResponse | undefined) => ({
+          conversation: {
+            ...old!.conversation,
+            messages: [...(old?.conversation.messages || []), optimisticMessage],
+          },
+        })
+      )
+
+      return { previous }
     },
     onSuccess: (result: StreamResult) => {
       const effectiveId = result.newConversationId || conversationId
@@ -323,6 +325,16 @@ export function useChat(conversationId?: number | null) {
       }
     }, [conversationId, queryClient, showToast])
 
+  // Regenerate message
+  const regenerateMessage = useCallback(
+    async (messageId: number) => {
+      if (!conversationId) return
+      
+      // TODO: Implement regenerate API call
+      console.log('Regenerating message:', messageId)
+      showToast('Regenerate feature coming soon!', 'info')
+    }, [conversationId, showToast])
+
   // Search
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<Conversation[]>([])
@@ -373,6 +385,7 @@ export function useChat(conversationId?: number | null) {
     isUpdatingTitle: updateTitleMutation.isPending,
     
     reactToMessage,
+    regenerateMessage,
     
     searchQuery,
     setSearchQuery,

@@ -17,9 +17,16 @@ import type { Message } from '@/types';
 interface MessageListProps {
   messages: Message[];
   conversationId?: number;
+  streamingMessage?: string;    // ⬅️ ADD
+  isStreaming?: boolean;         // ⬅️ ADD
 }
 
-export function MessageList({ messages }: MessageListProps) {
+export function MessageList({ 
+  messages, 
+  conversationId,
+  streamingMessage = '',
+  isStreaming = false 
+}: MessageListProps) {
   const isThinking = useAppStore((state) => state.isThinking);
 
   // Empty state
@@ -85,6 +92,7 @@ export function MessageList({ messages }: MessageListProps) {
           <MessageBubble 
             key={message.id} 
             message={message}
+            conversationId={conversationId}
           />
         ))}
       </AnimatePresence>
