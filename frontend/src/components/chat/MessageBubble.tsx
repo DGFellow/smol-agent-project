@@ -1,13 +1,7 @@
 // src/components/chat/MessageBubble.tsx
 /**
- * MessageBubble - Complete rewrite with animations
- * 
- * Features:
- * - Left/right alignment (Assistant left, User right)
- * - Smooth fade-in + slide-up animation
- * - Beautiful styling with proper spacing
- * - Thinking indicator integration
- * - Avatar support
+ * MessageBubble - User on RIGHT, Assistant on LEFT
+ * Reactions always visible
  */
 
 import React from 'react';
@@ -35,9 +29,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
   isStreaming = false
 }) => {
   const isUser = message.role === 'user';
-  const [showActions, setShowActions] = React.useState(false);
 
-  // Animation variants for smooth entrance
   const messageVariants = {
     hidden: { 
       opacity: 0, 
@@ -50,14 +42,13 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
       scale: 1,
       transition: {
         duration: 0.3,
-        ease: [0.25, 0.46, 0.45, 0.94] // easeOutQuad
+        ease: [0.25, 0.46, 0.45, 0.94] as const
       }
     }
   };
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(message.content);
-    // TODO: Show toast notification
   };
 
   return (
@@ -65,109 +56,107 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
       initial="hidden"
       animate="visible"
       variants={messageVariants}
-      onMouseEnter={() => setShowActions(true)}
-      onMouseLeave={() => setShowActions(false)}
       className={`message-row w-full py-6 transition-colors ${
-        isUser ? 'bg-transparent' : 'bg-white/5 hover:bg-white/8'
+        isUser ? 'bg-transparent' : 'bg-white/5'
       }`}
     >
-      <div className="max-w-4xl mx-auto px-6 flex gap-4">
-        {/* Avatar - Always on the left */}
-        <div className="flex-shrink-0">
-          <motion.div 
-            className={`w-8 h-8 rounded-full flex items-center justify-center shadow-lg ${
-              isUser 
-                ? 'bg-gradient-to-br from-blue-500 to-blue-600' 
-                : 'bg-gradient-to-br from-green-500 to-green-600'
-            }`}
-            whileHover={{ scale: 1.05 }}
-            transition={{ type: 'spring', stiffness: 300 }}
-          >
-            {isUser ? (
-              <User className="w-5 h-5 text-white" />
-            ) : (
-              <Bot className="w-5 h-5 text-white" />
-            )}
-          </motion.div>
-        </div>
-
-        {/* Content */}
-        <div className="flex-1 min-w-0">
-          {/* Name header */}
-          <div className="flex items-center gap-2 mb-2">
-            <span className="font-semibold text-white text-sm">
-              {isUser ? 'You' : 'Assistant'}
-            </span>
-            {!isUser && message.reaction && (
-              <span className="text-xs">
-                {message.reaction === 'like' ? '👍' : '👎'}
-              </span>
-            )}
-          </div>
-
-          {/* Thinking Indicator (only for assistant, above message) */}
-          {!isUser && message.thinking && (
-            <div className="mb-3">
-              <ThinkingIndicator
-                steps={message.thinking.steps}
-                isComplete={!isStreaming}
-                duration={message.thinking.duration}
-              />
-            </div>
-          )}
-
-          {/* Message Content */}
-          <div className="text-white/90 text-[15px] leading-relaxed">
-            {isUser ? (
-              <p className="whitespace-pre-wrap">{message.content}</p>
-            ) : (
-              <MarkdownContent content={message.content} />
-            )}
-            
-            {/* Streaming cursor */}
-            {isStreaming && !isUser && (
-              <motion.span
-                className="inline-block w-2 h-4 bg-green-400 ml-1 rounded-sm"
-                animate={{ opacity: [1, 0.3, 1] }}
-                transition={{ duration: 0.8, repeat: Infinity }}
-              />
-            )}
-          </div>
-
-          {/* Action buttons - Show on hover */}
-          {showActions && !isStreaming && (
-            <motion.div
-              initial={{ opacity: 0, y: -5 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="flex items-center gap-2 mt-3"
-            >
-              <button
-                onClick={handleCopy}
-                className="p-1.5 rounded-md hover:bg-white/10 text-white/60 hover:text-white transition-all"
-                title="Copy message"
-              >
-                <Copy className="w-4 h-4" />
-              </button>
+      <div className="max-w-4xl mx-auto px-6">
+        {/* USER MESSAGE - Right aligned */}
+        {isUser ? (
+          <div className="flex gap-4 justify-end">
+            <div className="flex-1 min-w-0 flex flex-col items-end">
+              <div className="font-semibold text-white text-sm mb-2">
+                You
+              </div>
+              <div className="bg-blue-600/80 rounded-2xl px-4 py-3 max-w-[80%]">
+                <p className="text-white text-[15px] leading-relaxed whitespace-pre-wrap">
+                  {message.content}
+                </p>
+              </div>
               
-              {!isUser && (
-                <>
-                  <button
-                    className="p-1.5 rounded-md hover:bg-white/10 text-white/60 hover:text-white transition-all"
-                    title="Like"
-                  >
-                    <ThumbsUp className="w-4 h-4" />
-                  </button>
-                  <button
-                    className="p-1.5 rounded-md hover:bg-white/10 text-white/60 hover:text-white transition-all"
-                    title="Dislike"
-                  >
-                    <ThumbsDown className="w-4 h-4" />
-                  </button>
-                </>
+              {/* Actions - Always visible */}
+              <div className="flex items-center gap-2 mt-2">
+                <button
+                  onClick={handleCopy}
+                  className="p-1.5 rounded-md hover:bg-white/10 text-white/60 hover:text-white transition-all"
+                  title="Copy"
+                >
+                  <Copy className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+            
+            <div className="flex-shrink-0">
+              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-lg">
+                <User className="w-5 h-5 text-white" />
+              </div>
+            </div>
+          </div>
+        ) : (
+          /* ASSISTANT MESSAGE - Left aligned */
+          <div className="flex gap-4">
+            <div className="flex-shrink-0">
+              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center shadow-lg">
+                <Bot className="w-5 h-5 text-white" />
+              </div>
+            </div>
+
+            <div className="flex-1 min-w-0">
+              <div className="font-semibold text-white text-sm mb-2">
+                Assistant
+              </div>
+
+              {/* Thinking Indicator */}
+              {message.thinking && (
+                <div className="mb-3">
+                  <ThinkingIndicator
+                    steps={message.thinking.steps}
+                    isComplete={!isStreaming}
+                    duration={message.thinking.duration}
+                  />
+                </div>
               )}
-            </motion.div>
-          )}
-        </div>
+
+              {/* Message Content */}
+              <div className="text-white/90 text-[15px] leading-relaxed">
+                {message.content ? (
+                  <MarkdownContent content={message.content} />
+                ) : null}
+                
+                {isStreaming && (
+                  <motion.span
+                    className="inline-block w-2 h-4 bg-green-400 ml-1 rounded-sm"
+                    animate={{ opacity: [1, 0.3, 1] }}
+                    transition={{ duration: 0.8, repeat: Infinity }}
+                  />
+                )}
+              </div>
+
+              {/* Actions - Always visible */}
+              <div className="flex items-center gap-2 mt-3">
+                <button
+                  onClick={handleCopy}
+                  className="p-1.5 rounded-md hover:bg-white/10 text-white/60 hover:text-white transition-all"
+                  title="Copy"
+                >
+                  <Copy className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  className="p-1.5 rounded-md hover:bg-white/10 text-white/60 hover:text-white transition-all"
+                  title="Like"
+                >
+                  <ThumbsUp className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  className="p-1.5 rounded-md hover:bg-white/10 text-white/60 hover:text-white transition-all"
+                  title="Dislike"
+                >
+                  <ThumbsDown className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </motion.div>
   );
