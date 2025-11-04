@@ -1,10 +1,14 @@
-// src/components/chat/MessageBubble.tsx - DISPLAY STREAMING
+// src/components/chat/MessageBubble.tsx
+/**
+ * MessageBubble - User on RIGHT, Assistant on LEFT
+ * Reactions always visible
+ */
 
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { User, Bot } from 'lucide-react';
 import { ThinkingIndicator } from './ThinkingIndicator';
-import { MarkdownContent } from './MarkdownContent';
+import { MessageRenderer } from './MessageRenderer';
 import { MessageActions } from './MessageActions';
 import { useChat } from '@/hooks/useChat';
 
@@ -21,22 +25,22 @@ interface MessageBubbleProps {
   };
   conversationId?: number;
   isStreaming?: boolean;
-  streamingContent?: string;
+  streamingContent?: string; // ⬅️ ADD THIS
 }
 
 export const MessageBubble: React.FC<MessageBubbleProps> = ({ 
   message,
   conversationId,
   isStreaming = false,
-  streamingContent = ''
+  streamingContent = '' // ⬅️ ADD THIS
 }) => {
   const isUser = message.role === 'user';
   const [isEditing, setIsEditing] = useState(false);
   const [editedContent, setEditedContent] = useState(message.content);
   const { reactToMessage, regenerateMessage } = useChat(conversationId);
 
-  // ✅ Use streaming content if actively streaming, otherwise use message content
-  const displayContent = isStreaming ? streamingContent : message.content;
+  // ⬅️ USE STREAMING CONTENT IF AVAILABLE
+  const displayContent = isStreaming && streamingContent ? streamingContent : message.content;
 
   const messageVariants = {
     hidden: { 
@@ -56,7 +60,8 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
   };
 
   const handleCopy = async () => {
-    await navigator.clipboard.writeText(displayContent);
+    const textToCopy = isStreaming && streamingContent ? streamingContent : message.content;
+    await navigator.clipboard.writeText(textToCopy);
   };
 
   const handleEdit = () => {
@@ -64,6 +69,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
   };
 
   const handleSaveEdit = () => {
+    // TODO: Implement edit functionality
     console.log('Save edit:', editedContent);
     setIsEditing(false);
   };
@@ -91,8 +97,8 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
       }`}
     >
       <div className="max-w-4xl mx-auto px-6">
+        {/* USER MESSAGE - Right aligned */}
         {isUser ? (
-          // USER MESSAGE
           <div className="flex gap-4 justify-end">
             <div className="flex-1 min-w-0 flex flex-col items-end">
               <div className="font-semibold text-white text-sm mb-2">
@@ -129,6 +135,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
                 )}
               </div>
               
+              {/* Actions */}
               {!isEditing && (
                 <MessageActions
                   messageId={message.id}
@@ -148,7 +155,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
             </div>
           </div>
         ) : (
-          // ASSISTANT MESSAGE
+          /* ASSISTANT MESSAGE - Left aligned */
           <div className="flex gap-4">
             <div className="flex-shrink-0">
               <div className="w-8 h-8 rounded-full bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center shadow-lg">
@@ -172,32 +179,30 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
                 </div>
               )}
 
-              {/* Message Content */}
+              {/* Message Content - STREAMING SUPPORT */}
               <div className="text-white/90 text-[15px] leading-relaxed">
-                {displayContent && <MarkdownContent content={displayContent} />}
+                <MarkdownContent content={displayContent} />
                 
-                {/* Animated cursor when streaming */}
-                {isStreaming && displayContent && (
+                {/* Cursor when streaming */}
+                {isStreaming && (
                   <motion.span
-                    className="inline-block w-2 h-4 bg-green-400 ml-1 rounded-sm align-middle"
+                    className="inline-block w-2 h-4 bg-green-400 ml-1 rounded-sm"
                     animate={{ opacity: [1, 0.3, 1] }}
                     transition={{ duration: 0.8, repeat: Infinity }}
                   />
                 )}
               </div>
 
-              {/* Actions - Only show for completed messages */}
-              {!isStreaming && message.id !== -1 && (
-                <MessageActions
-                  messageId={message.id}
-                  role={message.role}
-                  content={displayContent}
-                  reaction={message.reaction}
-                  onCopy={handleCopy}
-                  onRegenerate={handleRegenerate}
-                  onReact={handleReact}
-                />
-              )}
+              {/* Actions */}
+              <MessageActions
+                messageId={message.id}
+                role={message.role}
+                content={message.content}
+                reaction={message.reaction}
+                onCopy={handleCopy}
+                onRegenerate={handleRegenerate}
+                onReact={handleReact}
+              />
             </div>
           </div>
         )}
