@@ -1,47 +1,60 @@
+// src/store/appStore.ts
 import { create } from 'zustand'
-import type { ViewMode } from '@/types'
+
+type ViewMode = 'hero' | 'chat' | 'projects' | 'settings'
 
 interface AppState {
-  // UI State
-  viewMode: ViewMode
+  // Sidebar
   sidebarExpanded: boolean
-  currentConversationId: number | null
-  
-  // Loading states
-  isThinking: boolean
-  
-  // Actions
-  setViewMode: (mode: ViewMode) => void
   setSidebarExpanded: (expanded: boolean) => void
   toggleSidebar: () => void
+  
+  // Current conversation
+  currentConversationId: number | null
   setCurrentConversationId: (id: number | null) => void
+  
+  // View mode
+  viewMode: ViewMode
+  setViewMode: (mode: ViewMode) => void
+  
+  // Thinking state
+  isThinking: boolean
   setThinking: (thinking: boolean) => void
-  resetToHero: () => void
 }
 
 export const useAppStore = create<AppState>((set) => ({
-  // Initial state
-  viewMode: 'hero',
-  sidebarExpanded: false, // Start collapsed
+  // Sidebar state
+  sidebarExpanded: false,
+  setSidebarExpanded: (expanded) => {
+    console.log('📱 Setting sidebar expanded:', expanded)
+    set({ sidebarExpanded: expanded })
+  },
+  toggleSidebar: () => set((state) => {
+    console.log('📱 Toggling sidebar:', !state.sidebarExpanded)
+    return { sidebarExpanded: !state.sidebarExpanded }
+  }),
+  
+  // Conversation state
   currentConversationId: null,
+  setCurrentConversationId: (id) => {
+    console.log('💬 Setting conversation ID:', id)
+    set({ 
+      currentConversationId: id,
+      viewMode: id ? 'chat' : 'hero'
+    })
+  },
+  
+  // View mode
+  viewMode: 'hero',
+  setViewMode: (mode) => {
+    console.log('👁️ Setting view mode:', mode)
+    set({ viewMode: mode })
+  },
+  
+  // Thinking state
   isThinking: false,
-
-  // Actions
-  setViewMode: (mode) => set({ viewMode: mode }),
-  
-  setSidebarExpanded: (expanded) => set({ sidebarExpanded: expanded }),
-  
-  toggleSidebar: () =>
-    set((state) => ({ sidebarExpanded: !state.sidebarExpanded })),
-  
-  setCurrentConversationId: (id) => set({ currentConversationId: id }),
-  
-  setThinking: (thinking) => set({ isThinking: thinking }),
-  
-  resetToHero: () =>
-    set({
-      viewMode: 'hero',
-      currentConversationId: null,
-      isThinking: false,
-    }),
+  setThinking: (thinking) => {
+    console.log('🧠 Setting thinking state:', thinking)
+    set({ isThinking: thinking })
+  },
 }))
