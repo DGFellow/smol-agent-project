@@ -126,14 +126,22 @@ class QwenLangChain:
         """Create LangChain runnables for different tasks and adapt to dict-return."""
 
         # ----------------
-        # Chat chain
+        # Chat chain - IMPROVED SYSTEM PROMPT
         # ----------------
         chat_prompt = ChatPromptTemplate.from_messages(
             [
                 (
                     "system",
-                    "You are a helpful AI assistant. Provide clear, concise, and accurate responses.\n"
-                    "Be conversational and friendly while remaining professional.",
+                    "You are a helpful AI assistant. Your role is to provide direct, accurate, and concise responses.\n\n"
+                    "CRITICAL INSTRUCTIONS:\n"
+                    "- Respond ONLY as the assistant. Never write 'Assistant:' or 'Human:' in your responses.\n"
+                    "- Do NOT generate hypothetical conversations or dialogue between multiple speakers.\n"
+                    "- Do NOT simulate back-and-forth exchanges.\n"
+                    "- Provide your answer directly without any role labels or prefixes.\n"
+                    "- Be conversational and friendly while remaining professional.\n"
+                    "- Focus on answering the user's actual question, not imagining future conversations.\n\n"
+                    "CORRECT: 'I can help you with coding, writing, and answering questions.'\n"
+                    "INCORRECT: 'Assistant: I can help... Human: What about... Assistant: Sure...'"
                 ),
                 MessagesPlaceholder(variable_name="chat_history"),
                 ("human", "{input}"),
@@ -144,19 +152,23 @@ class QwenLangChain:
         self.chat_chain = _DictReturningChain(chat_runnable)
 
         # ----------------
-        # Code generation
+        # Code generation - IMPROVED SYSTEM PROMPT
         # ----------------
         code_prompt = ChatPromptTemplate.from_messages(
             [
                 (
                     "system",
-                    "You are an expert programmer. Generate clean, well-documented code.\n"
+                    "You are an expert programmer. Generate clean, well-documented code.\n\n"
+                    "CRITICAL INSTRUCTIONS:\n"
+                    "- Respond ONLY as the assistant. Never write 'Assistant:' or 'Human:' in your responses.\n"
+                    "- Do NOT generate hypothetical conversations.\n"
+                    "- Provide the code solution directly.\n\n"
                     "Always include:\n"
                     "1. Clear variable names\n"
                     "2. Comments explaining logic\n"
                     "3. Error handling where appropriate\n"
                     "4. Type hints (for Python)\n\n"
-                    "Language: {language}",
+                    "Language: {language}"
                 ),
                 ("human", "{input}"),
             ]
