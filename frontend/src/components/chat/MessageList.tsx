@@ -1,36 +1,35 @@
-// src/components/chat/MessageList.tsx
-/**
- * MessageList - Renders list of messages with staggered animations
- * 
- * Features:
- * - Staggered entrance animations for messages
- * - Handles thinking indicator display
- * - Empty state handling
- * - Smooth scroll behavior
- */
+// src/components/chat/MessageList.tsx - SHOW STREAMING
 
 import { motion, AnimatePresence } from 'framer-motion';
 import { MessageBubble } from './MessageBubble';
 import { useAppStore } from '@/store/appStore';
 import type { Message } from '@/types';
 
+interface ThinkingStep {
+  content: string;
+  step: number;
+  timestamp: number;
+}
+
 interface MessageListProps {
   messages: Message[];
   conversationId?: number;
-  streamingMessage?: string;    // ⬅️ ADD
-  isStreaming?: boolean;         // ⬅️ ADD
+  streamingMessage?: string;
+  isStreaming?: boolean;
+  thinkingSteps?: ThinkingStep[];
 }
 
 export function MessageList({ 
   messages, 
   conversationId,
   streamingMessage = '',
-  isStreaming = false 
+  isStreaming = false,
+  thinkingSteps = []
 }: MessageListProps) {
   const isThinking = useAppStore((state) => state.isThinking);
 
   // Empty state
-  if (messages.length === 0 && !isThinking) {
+  if (messages.length === 0 && !isStreaming && !isThinking) {
     return (
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
@@ -68,13 +67,12 @@ export function MessageList({
     );
   }
 
-  // Container animation with stagger
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
       opacity: 1,
       transition: {
-        staggerChildren: 0.08, // Stagger each message by 80ms
+        staggerChildren: 0.08,
         delayChildren: 0.1
       }
     }
@@ -88,6 +86,7 @@ export function MessageList({
       className="space-y-0"
     >
       <AnimatePresence mode="popLayout">
+        {/* Existing messages */}
         {messages.map((message) => (
           <MessageBubble 
             key={message.id} 
@@ -95,6 +94,26 @@ export function MessageList({
             conversationId={conversationId}
           />
         ))}
+        
+        {/* ✅ STREAMING MESSAGE - Show as temporary bubble */}
+        {(isStreaming || isThinking) && (
+          <MessageBubble
+            key="streaming-message"
+            message={{
+              id: -1, // Temporary ID
+              role: 'assistant',
+              content: streamingMessage,
+              thinking: thinkingSteps.length > 0 ? {
+                steps: thinkingSteps,
+                duration: 0
+              } : undefined,
+              reaction: null
+            }}
+            conversationId={conversationId}
+            isStreaming={true}
+            streamingContent={streamingMessage}
+          />
+        )}
       </AnimatePresence>
     </motion.div>
   );

@@ -1,8 +1,4 @@
-// src/components/chat/MessageBubble.tsx
-/**
- * MessageBubble - User on RIGHT, Assistant on LEFT
- * Reactions always visible
- */
+// src/components/chat/MessageBubble.tsx - DISPLAY STREAMING
 
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
@@ -25,22 +21,22 @@ interface MessageBubbleProps {
   };
   conversationId?: number;
   isStreaming?: boolean;
-  streamingContent?: string; // ⬅️ ADD THIS
+  streamingContent?: string;
 }
 
 export const MessageBubble: React.FC<MessageBubbleProps> = ({ 
   message,
   conversationId,
   isStreaming = false,
-  streamingContent = '' // ⬅️ ADD THIS
+  streamingContent = ''
 }) => {
   const isUser = message.role === 'user';
   const [isEditing, setIsEditing] = useState(false);
   const [editedContent, setEditedContent] = useState(message.content);
   const { reactToMessage, regenerateMessage } = useChat(conversationId);
 
-  // ⬅️ USE STREAMING CONTENT IF AVAILABLE
-  const displayContent = isStreaming && streamingContent ? streamingContent : message.content;
+  // ✅ Use streaming content if actively streaming, otherwise use message content
+  const displayContent = isStreaming ? streamingContent : message.content;
 
   const messageVariants = {
     hidden: { 
@@ -60,8 +56,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
   };
 
   const handleCopy = async () => {
-    const textToCopy = isStreaming && streamingContent ? streamingContent : message.content;
-    await navigator.clipboard.writeText(textToCopy);
+    await navigator.clipboard.writeText(displayContent);
   };
 
   const handleEdit = () => {
@@ -69,7 +64,6 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
   };
 
   const handleSaveEdit = () => {
-    // TODO: Implement edit functionality
     console.log('Save edit:', editedContent);
     setIsEditing(false);
   };
@@ -97,8 +91,8 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
       }`}
     >
       <div className="max-w-4xl mx-auto px-6">
-        {/* USER MESSAGE - Right aligned */}
         {isUser ? (
+          // USER MESSAGE
           <div className="flex gap-4 justify-end">
             <div className="flex-1 min-w-0 flex flex-col items-end">
               <div className="font-semibold text-white text-sm mb-2">
@@ -135,7 +129,6 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
                 )}
               </div>
               
-              {/* Actions */}
               {!isEditing && (
                 <MessageActions
                   messageId={message.id}
@@ -155,7 +148,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
             </div>
           </div>
         ) : (
-          /* ASSISTANT MESSAGE - Left aligned */
+          // ASSISTANT MESSAGE
           <div className="flex gap-4">
             <div className="flex-shrink-0">
               <div className="w-8 h-8 rounded-full bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center shadow-lg">
@@ -179,30 +172,32 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
                 </div>
               )}
 
-              {/* Message Content - STREAMING SUPPORT */}
+              {/* Message Content */}
               <div className="text-white/90 text-[15px] leading-relaxed">
-                <MarkdownContent content={displayContent} />
+                {displayContent && <MarkdownContent content={displayContent} />}
                 
-                {/* Cursor when streaming */}
-                {isStreaming && (
+                {/* Animated cursor when streaming */}
+                {isStreaming && displayContent && (
                   <motion.span
-                    className="inline-block w-2 h-4 bg-green-400 ml-1 rounded-sm"
+                    className="inline-block w-2 h-4 bg-green-400 ml-1 rounded-sm align-middle"
                     animate={{ opacity: [1, 0.3, 1] }}
                     transition={{ duration: 0.8, repeat: Infinity }}
                   />
                 )}
               </div>
 
-              {/* Actions */}
-              <MessageActions
-                messageId={message.id}
-                role={message.role}
-                content={message.content}
-                reaction={message.reaction}
-                onCopy={handleCopy}
-                onRegenerate={handleRegenerate}
-                onReact={handleReact}
-              />
+              {/* Actions - Only show for completed messages */}
+              {!isStreaming && message.id !== -1 && (
+                <MessageActions
+                  messageId={message.id}
+                  role={message.role}
+                  content={displayContent}
+                  reaction={message.reaction}
+                  onCopy={handleCopy}
+                  onRegenerate={handleRegenerate}
+                  onReact={handleReact}
+                />
+              )}
             </div>
           </div>
         )}
