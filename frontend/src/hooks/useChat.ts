@@ -74,6 +74,7 @@ export function useChat(conversationId?: number | null) {
   const sendMutation = useMutation({
     mutationFn: async (request: MessageRequest): Promise<StreamResult> => {
       console.log('🚀 Starting stream for message:', request.message)
+      console.log('📍 Stream ref BEFORE:', streamingRef.current)
       
       // RESET STATE
       setStreamingMessage('')
@@ -81,6 +82,8 @@ export function useChat(conversationId?: number | null) {
       setThinkingComplete(false)
       setThinkingDuration(undefined)
       streamingRef.current = true // ✅ SET TO TRUE HERE!
+      
+      console.log('📍 Stream ref AFTER:', streamingRef.current)
       
       try {
         const response = await fetch(`${api.defaults.baseURL}/chat/stream`, {
@@ -155,7 +158,7 @@ export function useChat(conversationId?: number | null) {
                     if (event.conversation_id && !conversationId) {
                       console.log('🆔 New conversation ID:', event.conversation_id)
                       newConversationId = event.conversation_id
-                      setCurrentConversationId(newConversationId)
+                      setCurrentConversationId(newConversationId ?? null)
                       setViewMode('chat')
                     }
                     break
