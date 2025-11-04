@@ -12,7 +12,6 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { MessageBubble } from './MessageBubble';
 import { useAppStore } from '@/store/appStore';
-import { useChat } from '@/hooks/useChat';
 import type { Message } from '@/types';
 
 interface MessageListProps {
@@ -20,9 +19,8 @@ interface MessageListProps {
   conversationId?: number;
 }
 
-export function MessageList({ messages, conversationId }: MessageListProps) {
+export function MessageList({ messages }: MessageListProps) {
   const isThinking = useAppStore((state) => state.isThinking);
-  const { thinkingSteps, thinkingComplete, thinkingDuration } = useChat(conversationId);
 
   // Empty state
   if (messages.length === 0 && !isThinking) {

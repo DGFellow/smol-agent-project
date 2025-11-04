@@ -1,38 +1,24 @@
+// src/pages/ChatPage.tsx
 import { useEffect } from 'react'
 import { useAppStore } from '@/store/appStore'
-import { useAuthStore } from '@/store/authStore'
 import { useChat } from '@/hooks/useChat'
-import { HeroView } from '@/components/chat/HeroView'
 import { ChatView } from '@/components/chat/ChatView'
+import { HeroView } from '@/components/chat/HeroView'
 
 export function ChatPage() {
-  const { viewMode, currentConversationId, setViewMode } = useAppStore()
-  const { user } = useAuthStore()
-  const { conversation, isLoadingConversation: isLoading } = useChat(currentConversationId)
+  const { currentConversationId, viewMode } = useAppStore()
+  const { conversation, isLoadingConversation } = useChat(currentConversationId)
 
-  // Switch to chat view when conversation exists
   useEffect(() => {
-    if (currentConversationId && viewMode === 'hero') {
-      // Small delay for smooth transition
-      const timer = setTimeout(() => setViewMode('chat'), 50)
-      return () => clearTimeout(timer)
-    }
-  }, [currentConversationId, viewMode, setViewMode])
+    console.log('ChatPage - conversationId:', currentConversationId)
+    console.log('ChatPage - viewMode:', viewMode)
+  }, [currentConversationId, viewMode])
 
-  // Reset to hero if no conversation
-  useEffect(() => {
-    if (!currentConversationId && viewMode === 'chat') {
-      setViewMode('hero')
-    }
-  }, [currentConversationId, viewMode, setViewMode])
+  // Show hero view when no conversation
+  if (viewMode === 'hero' || !currentConversationId) {
+    return <HeroView />
+  }
 
-  return (
-    <div className="chat-container flex-1 flex flex-col max-w-6xl w-full mx-auto px-4 md:px-8 py-8">
-      {viewMode === 'hero' ? (
-        <HeroView user={user} />
-      ) : (
-        <ChatView conversation={conversation} isLoading={isLoading} />
-      )}
-    </div>
-  )
+  // Show chat view when conversation exists
+  return <ChatView conversation={conversation} isLoading={isLoadingConversation} />
 }
