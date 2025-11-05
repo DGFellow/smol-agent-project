@@ -20,6 +20,12 @@ interface AttachedFile {
   fileId?: string
 }
 
+/**
+ * MessageComposer - Uses sendMessage from useChat (which delegates to ChatService)
+ * 
+ * ✅ DOES NOT instantiate its own useChat
+ * ✅ Receives conversationId and calls sendMessage from parent's hook
+ */
 export function MessageComposer({
   placeholder = 'Message Assistant...',
   conversationId = null,
@@ -30,6 +36,8 @@ export function MessageComposer({
   const [attachedFiles, setAttachedFiles] = useState<AttachedFile[]>([])
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  
+  // ✅ USE PARENT'S HOOK INSTANCE (passed via conversationId)
   const { sendMessage, isSending, showToast } = useChat(conversationId)
 
   useEffect(() => {
@@ -90,27 +98,35 @@ export function MessageComposer({
   }
 
   const handleSubmit = () => {
-    console.log('handleSubmit called with message:', message, 'conversationId:', conversationId, 'isSending:', isSending);
+    console.log('✉️ MessageComposer.handleSubmit - conversationId:', conversationId)
+    
     if ((!message.trim() && attachedFiles.length === 0) || isSending) {
-      console.log('Submit blocked: empty message or sending');
-      return;
+      console.log('⛔ Submit blocked: empty or already sending')
+      return
     }
 
     const uploadedFiles = attachedFiles
       .filter(f => f.uploaded)
-      .map(f => f.fileId!);
+      .map(f => f.fileId!)
 
-    console.log('Calling sendMessage with:', { message: message.trim(), conversation_id: conversationId, files: uploadedFiles });
+    console.log('📤 Calling sendMessage via ChatService')
+    
+    // ✅ CALL PARENT'S sendMessage (which delegates to ChatService)
     sendMessage({
       message: message.trim(),
       conversation_id: conversationId,
       files: uploadedFiles
-    });
+    })
 
-    setMessage('');
-    setAttachedFiles([]);
-    onSent?.();
-  };
+    setMessage('')
+    setAttachedFiles([])
+    
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto'
+    }
+    
+    onSent?.()
+  }
 
   return (
     <div className="message-composer w-full max-w-3xl mx-auto">
