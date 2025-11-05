@@ -9,8 +9,15 @@ import { AccountButton } from './AccountButton'
 import { getInitials, cn } from '@/lib/utils'
 
 export function Sidebar() {
-  const { sidebarExpanded, toggleSidebar, setSidebarExpanded, setCurrentConversationId, setViewMode } = useAppStore()
-  const { user } = useAuthStore()
+  // ✅ FIX: Select each value separately to avoid object reference issues
+  const sidebarExpanded = useAppStore((state) => state.sidebarExpanded)
+  const toggleSidebar = useAppStore((state) => state.toggleSidebar)
+  const setSidebarExpanded = useAppStore((state) => state.setSidebarExpanded)
+  const setCurrentConversationId = useAppStore((state) => state.setCurrentConversationId)
+  const setViewMode = useAppStore((state) => state.setViewMode)
+  
+  const user = useAuthStore((state) => state.user)
+  
   const { conversations, isLoadingConversations: isLoading } = useChat()
   
   const startNewConversation = () => {

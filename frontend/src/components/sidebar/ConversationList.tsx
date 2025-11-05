@@ -15,7 +15,10 @@ export function ConversationList() {
     updateTitle,
   } = useChat()
   
-  const { currentConversationId, setCurrentConversationId } = useAppStore()
+  // ✅ FIX: Select each value separately
+  const currentConversationId = useAppStore((state) => state.currentConversationId)
+  const setCurrentConversationId = useAppStore((state) => state.setCurrentConversationId)
+  
   const [editingId, setEditingId] = useState<number | null>(null)
   const [editTitle, setEditTitle] = useState('')
 

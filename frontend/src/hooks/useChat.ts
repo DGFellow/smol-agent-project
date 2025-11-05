@@ -1,4 +1,4 @@
-// frontend/src/hooks/useChat.ts - REFACTORED TO SELECTOR ONLY
+// frontend/src/hooks/useChat.ts - FIXED: Proper Zustand selector
 import { useState, useCallback, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { conversationApi, messageApi, getErrorMessage } from '@/lib/api'
@@ -17,11 +17,7 @@ interface Toast {
 /**
  * useChat - Pure selector over Zustand store + send API
  * 
- * This hook:
- * - Reads streaming state from Zustand (NOT local state)
- * - Provides sendMessage that delegates to ChatService
- * - Does NOT own isStreaming/isSending flags
- * - Does NOT manage side effects tied to mounting/unmounting
+ * ✅ FIXED: Use separate selectors to avoid infinite loops
  */
 export function useChat(conversationId?: number | null) {
   const queryClient = useQueryClient()
@@ -29,24 +25,13 @@ export function useChat(conversationId?: number | null) {
 
   const hasToken = !!localStorage.getItem('token')
 
-  // ✅ SELECT FROM ZUSTAND (no local state)
-  const {
-    isStreaming,
-    isSending,
-    streamingByConv,
-    currentConversationId,
-    setCurrentConversationId,
-    setViewMode,
-    clearStreamingState,
-  } = useAppStore((state) => ({
-    isStreaming: state.isStreaming,
-    isSending: state.isSending,
-    streamingByConv: state.streamingByConv,
-    currentConversationId: state.currentConversationId,
-    setCurrentConversationId: state.setCurrentConversationId,
-    setViewMode: state.setViewMode,
-    clearStreamingState: state.clearStreamingState,
-  }))
+  // ✅ FIX: Select primitives separately (not as object)
+  const isStreaming = useAppStore((state) => state.isStreaming)
+  const isSending = useAppStore((state) => state.isSending)
+  const streamingByConv = useAppStore((state) => state.streamingByConv)
+  const setCurrentConversationId = useAppStore((state) => state.setCurrentConversationId)
+  const setViewMode = useAppStore((state) => state.setViewMode)
+  const clearStreamingState = useAppStore((state) => state.clearStreamingState)
 
   // Get streaming state for current conversation
   const stateKey = conversationId ?? 'pending'
