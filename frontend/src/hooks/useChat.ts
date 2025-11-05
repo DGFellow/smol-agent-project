@@ -1,13 +1,10 @@
-// frontend/src/hooks/useChat.ts
-/**
- * Consolidated Chat Hook - FIXED STREAMING
- */
-
-import { useState, useCallback, useRef, useEffect } from 'react'
+// frontend/src/hooks/useChat.ts - REFACTORED TO SELECTOR ONLY
+import { useState, useCallback, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import api, { conversationApi, messageApi, getErrorMessage } from '@/lib/api'
+import { conversationApi, messageApi, getErrorMessage } from '@/lib/api'
 import { queryKeys } from '@/lib/queryClient'
 import { useAppStore } from '@/store/appStore'
+import { ChatService } from '@/services/ChatService'
 import type { Message, MessageRequest, Conversation, ConversationResponse } from '@/types'
 
 type ToastType = 'success' | 'error' | 'info'
@@ -17,26 +14,48 @@ interface Toast {
   message: string
 }
 
-interface ThinkingStep {
-  content: string
-  step: number
-  timestamp: number
-}
-
-interface StreamResult {
-  content: string
-  newConversationId?: number
-}
-
+/**
+ * useChat - Pure selector over Zustand store + send API
+ * 
+ * This hook:
+ * - Reads streaming state from Zustand (NOT local state)
+ * - Provides sendMessage that delegates to ChatService
+ * - Does NOT own isStreaming/isSending flags
+ * - Does NOT manage side effects tied to mounting/unmounting
+ */
 export function useChat(conversationId?: number | null) {
   const queryClient = useQueryClient()
-  const { setCurrentConversationId, setViewMode, setThinking } = useAppStore()
   const [toasts, setToasts] = useState<Toast[]>([])
-  const [streamingMessage, setStreamingMessage] = useState<string>('')
-  const [thinkingSteps, setThinkingSteps] = useState<ThinkingStep[]>([])
-  const [thinkingDuration, setThinkingDuration] = useState<number>()
-  const [thinkingComplete, setThinkingComplete] = useState(false)
-  const streamingRef = useRef<boolean>(false)
+
+  const hasToken = !!localStorage.getItem('token')
+
+  // ✅ SELECT FROM ZUSTAND (no local state)
+  const {
+    isStreaming,
+    isSending,
+    streamingByConv,
+    currentConversationId,
+    setCurrentConversationId,
+    setViewMode,
+    clearStreamingState,
+  } = useAppStore((state) => ({
+    isStreaming: state.isStreaming,
+    isSending: state.isSending,
+    streamingByConv: state.streamingByConv,
+    currentConversationId: state.currentConversationId,
+    setCurrentConversationId: state.setCurrentConversationId,
+    setViewMode: state.setViewMode,
+    clearStreamingState: state.clearStreamingState,
+  }))
+
+  // Get streaming state for current conversation
+  const stateKey = conversationId ?? 'pending'
+  const streaming = streamingByConv[stateKey] || {
+    streamingMessage: '',
+    thinkingSteps: [],
+    thinkingComplete: false,
+    thinkingDuration: undefined,
+  }
 
   const showToast = useCallback((message: string, type: ToastType = 'info') => {
     const id = Date.now().toString()
@@ -46,7 +65,6 @@ export function useChat(conversationId?: number | null) {
     }, 3000)
   }, [])
 
-  // Conversations list
   const {
     data: conversationsData,
     isLoading: isLoadingList,
@@ -54,9 +72,9 @@ export function useChat(conversationId?: number | null) {
   } = useQuery({
     queryKey: queryKeys.conversations.all,
     queryFn: () => conversationApi.list({ limit: 50 }),
+    enabled: hasToken,
   })
 
-  // Current conversation
   const {
     data: conversationData,
     isLoading: isLoadingConversation,
@@ -64,124 +82,20 @@ export function useChat(conversationId?: number | null) {
   } = useQuery({
     queryKey: queryKeys.conversations.detail(conversationId || 0),
     queryFn: () => conversationApi.get(conversationId!),
-    enabled: !!conversationId,
+    enabled: !!conversationId && hasToken,
   })
 
   const conversation = conversationData?.conversation || null
   const messages = conversation?.messages || []
 
-  // SEND MESSAGE WITH STREAMING - FIXED!
+  // ✅ DELEGATE TO ChatService (no local state management)
   const sendMutation = useMutation({
-    mutationFn: async (request: MessageRequest): Promise<StreamResult> => {
-      console.log('🚀 Starting stream for message:', request.message)
-      console.log('📍 Stream ref BEFORE:', streamingRef.current)
-      
-      // RESET STATE
-      setStreamingMessage('')
-      setThinkingSteps([])
-      setThinkingComplete(false)
-      setThinkingDuration(undefined)
-      streamingRef.current = true // ✅ SET TO TRUE HERE!
-      
-      console.log('📍 Stream ref AFTER:', streamingRef.current)
-      
-      try {
-        const response = await fetch(`${api.defaults.baseURL}/chat/stream`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          },
-          body: JSON.stringify(request)
-        })
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`)
-        }
-        
-        if (!response.body) throw new Error('No response body')
-
-        const reader = response.body.getReader()
-        const decoder = new TextDecoder()
-        let fullResponse = ''
-        let newConversationId: number | undefined
-
-        while (true) {
-          const { done, value } = await reader.read()
-          if (done) break
-
-          const chunk = decoder.decode(value)
-          const lines = chunk.split('\n')
-
-          for (const line of lines) {
-            if (line.startsWith('data: ')) {
-              const data = line.slice(6)
-              if (data === '[DONE]') {
-                console.log('✅ Stream complete')
-                break
-              }
-
-              try {
-                const event = JSON.parse(data)
-                console.log('📦 SSE Event:', event.type)
-
-                switch (event.type) {
-                  case 'thinking_start':
-                    console.log('🧠 Thinking started')
-                    setThinking(true)
-                    setThinkingSteps([])
-                    break
-
-                  case 'thinking_step':
-                    console.log('💭 Thinking step:', event.content)
-                    setThinkingSteps(prev => [...prev, {
-                      content: event.content,
-                      step: event.step,
-                      timestamp: event.timestamp
-                    }])
-                    break
-
-                  case 'thinking_complete':
-                    console.log('✅ Thinking complete:', event.duration + 's')
-                    setThinking(false)
-                    setThinkingComplete(true)
-                    setThinkingDuration(event.duration)
-                    break
-
-                  case 'response':
-                    console.log('💬 Response chunk:', event.content)
-                    setStreamingMessage(prev => prev + event.content)
-                    fullResponse += event.content
-                    break
-
-                  case 'metadata':
-                    if (event.conversation_id && !conversationId) {
-                      console.log('🆔 New conversation ID:', event.conversation_id)
-                      newConversationId = event.conversation_id
-                      setCurrentConversationId(newConversationId ?? null)
-                      setViewMode('chat')
-                    }
-                    break
-
-                  case 'error':
-                    throw new Error(event.message)
-                }
-              } catch (e) {
-                console.error('Failed to parse SSE data:', e)
-              }
-            }
-          }
-        }
-
-        streamingRef.current = false
-        console.log('✅ Stream ended, full response length:', fullResponse.length)
-
-        return { content: fullResponse.trim(), newConversationId }
-      } catch (error) {
-        streamingRef.current = false
-        console.error('❌ Stream error:', error)
-        throw error
-      }
+    mutationFn: async (request: MessageRequest) => {
+      return ChatService.send({
+        conversationId: request.conversation_id ?? conversationId,
+        content: request.message,
+        files: request.files,
+      })
     },
     onMutate: async (request: MessageRequest) => {
       if (!conversationId) {
@@ -214,18 +128,18 @@ export function useChat(conversationId?: number | null) {
 
       return { previous }
     },
-    onSuccess: (result: StreamResult) => {
+    onSuccess: (result) => {
       const effectiveId = result.newConversationId || conversationId
       if (effectiveId) {
         const assistantMessage: Message = {
           id: Date.now() + 1,
-          content: result.content || streamingMessage,
+          content: result.content || streaming.streamingMessage,
           role: 'assistant',
           created_at: new Date().toISOString(),
           reaction: null,
-          thinking: thinkingSteps.length > 0 ? {
-            steps: thinkingSteps,
-            duration: thinkingDuration || 0
+          thinking: streaming.thinkingSteps.length > 0 ? {
+            steps: streaming.thinkingSteps,
+            duration: streaming.thinkingDuration || 0
           } : undefined
         }
 
@@ -240,21 +154,17 @@ export function useChat(conversationId?: number | null) {
         )
 
         queryClient.invalidateQueries({ queryKey: queryKeys.conversations.detail(effectiveId) })
+        
+        // Clear streaming state after successful completion
+        clearStreamingState(effectiveId)
+        if (stateKey === 'pending') {
+          clearStreamingState('pending')
+        }
       }
 
       queryClient.invalidateQueries({ queryKey: queryKeys.conversations.all })
-
-      setStreamingMessage('')
-      setThinkingSteps([])
-      setThinkingComplete(false)
-      setThinkingDuration(undefined)
-      setThinking(false)
     },
     onError: (error: Error, _variables: MessageRequest, context?: { previous?: ConversationResponse }) => {
-      streamingRef.current = false
-      setThinking(false)
-      setStreamingMessage('')
-      setThinkingSteps([])
       showToast(getErrorMessage(error), 'error')
 
       if (context?.previous && conversationId) {
@@ -263,10 +173,12 @@ export function useChat(conversationId?: number | null) {
           context.previous
         )
       }
+      
+      // Clear streaming state on error
+      clearStreamingState(stateKey)
     },
   })
 
-  // Delete conversation
   const deleteMutation = useMutation({
     mutationFn: (id: number) => conversationApi.delete(id),
     onSuccess: (_data: unknown, deletedId: number) => {
@@ -280,7 +192,6 @@ export function useChat(conversationId?: number | null) {
     onError: (error: Error) => showToast(getErrorMessage(error), 'error'),
   })
 
-  // Update title
   const updateTitleMutation = useMutation({
     mutationFn: ({ id, title }: { id: number; title: string }) =>
       conversationApi.updateTitle(id, title),
@@ -294,7 +205,6 @@ export function useChat(conversationId?: number | null) {
     onError: (error: Error) => showToast(getErrorMessage(error), 'error'),
   })
 
-  // React to message
   const reactToMessage = useCallback(
     async (messageId: number, reaction: 'like' | 'dislike' | null) => {
       if (!conversationId) return
@@ -325,17 +235,14 @@ export function useChat(conversationId?: number | null) {
       }
     }, [conversationId, queryClient, showToast])
 
-  // Regenerate message
   const regenerateMessage = useCallback(
     async (messageId: number) => {
       if (!conversationId) return
       
-      // TODO: Implement regenerate API call
       console.log('Regenerating message:', messageId)
       showToast('Regenerate feature coming soon!', 'info')
     }, [conversationId, showToast])
 
-  // Search
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<Conversation[]>([])
 
@@ -357,6 +264,8 @@ export function useChat(conversationId?: number | null) {
     setSearchResults(filtered)
   }, [searchQuery, conversationsData])
 
+  console.log('🎯 useChat RENDER - isStreaming:', isStreaming, 'streamingMessage length:', streaming.streamingMessage.length)
+
   return {
     conversations: conversationsData?.conversations || [],
     isLoadingConversations: isLoadingList,
@@ -367,16 +276,16 @@ export function useChat(conversationId?: number | null) {
     isLoadingConversation,
     refetchConversation,
     
-    isStreaming: streamingRef.current, // ✅ Now properly tracked!
-    streamingMessage,
-    
-    thinkingSteps,
-    thinkingComplete,
-    thinkingDuration,
+    // ✅ FROM ZUSTAND, NOT LOCAL STATE
+    isStreaming,
+    isSending,
+    streamingMessage: streaming.streamingMessage,
+    thinkingSteps: streaming.thinkingSteps,
+    thinkingComplete: streaming.thinkingComplete,
+    thinkingDuration: streaming.thinkingDuration,
     
     sendMessage: sendMutation.mutate,
     sendMessageAsync: sendMutation.mutateAsync,
-    isSending: sendMutation.isPending,
     
     deleteConversation: deleteMutation.mutate,
     isDeleting: deleteMutation.isPending,
