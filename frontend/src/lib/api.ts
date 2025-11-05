@@ -240,22 +240,55 @@ export const messageApi = {
 // File API
 // ============================================
 export const fileApi = {
+  /**
+   * Upload a file with progress tracking
+   */
   upload: async (
     file: File,
-    conversationId?: number
-  ): Promise<{ file_id: string; filename: string }> => {
+    conversationId?: number,
+    onProgress?: (progress: number) => void
+  ): Promise<{ file_id: string; filename: string; size: number; mime_type: string }> => {
     const formData = new FormData()
     formData.append('file', file)
     if (conversationId) {
       formData.append('conversation_id', conversationId.toString())
     }
 
-    const { data } = await api.post('/upload', formData, {
+    const { data } = await api.post('/files/upload', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
+      onUploadProgress: (progressEvent) => {
+        if (onProgress && progressEvent.total) {
+          const progress = Math.round((progressEvent.loaded * 100) / progressEvent.total)
+          onProgress(progress)
+        }
+      },
     })
+    return data.file
+  },
+
+  /**
+   * Get file metadata
+   */
+  getMetadata: async (fileId: string): Promise<any> => {
+    const { data } = await api.get(`/files/${fileId}`)
     return data
+  },
+
+  /**
+   * Delete a file
+   */
+  delete: async (fileId: string): Promise<{ success: boolean; message: string }> => {
+    const { data } = await api.delete(`/files/${fileId}`)
+    return data
+  },
+
+  /**
+   * Get file download URL
+   */
+  getDownloadUrl: (fileId: string): string => {
+    return `${resolvedBaseURL}/files/${fileId}/download`
   },
 }
 
