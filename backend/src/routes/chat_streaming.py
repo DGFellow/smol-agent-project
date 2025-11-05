@@ -1,10 +1,9 @@
-# backend/src/routes/chat_streaming.py - FINAL VERSION
+# backend/src/routes/chat_streaming.py - FIXED VERSION
 
 from flask import Blueprint, Response, request, stream_with_context, g
 import json
 import re
 import time
-import asyncio
 from src.middleware.auth import token_required
 from config import Config
 
@@ -26,15 +25,27 @@ if not Config.USE_LANGCHAIN:
 
 def clean_llm_response(text: str) -> str:
     """
-    Clean LLM response to remove fake dialogue and prefixes
+    Clean LLM response to remove fake dialogue, prefixes, and clarifications
     
-    Removes:
-    - "Assistant:" prefixes
-    - Fake "Human:" dialogue
-    - Multiple role labels
+    ✅ IMPROVED: More aggressive cleaning for conversational responses
     """
     # Remove "Assistant:" prefix at the start
-    text = re.sub(r'^\s*Assistant:\s*', '', text, flags=re.IGNORECASE)
+    text = re.sub(r'^\s*Assistant:\s*', '', text, flags=re.IGNORECASE | re.MULTILINE)
+    
+    # Remove common clarification/thinking patterns at the start
+    clarification_patterns = [
+        r'^To be more specific[,:]?\s*',
+        r'^Let me clarify[,:]?\s*',
+        r'^In other words[,:]?\s*',
+        r'^More specifically[,:]?\s*',
+        r'^What I mean is[,:]?\s*',
+    ]
+    for pattern in clarification_patterns:
+        text = re.sub(pattern, '', text, flags=re.IGNORECASE)
+    
+    # Remove fake question/answer patterns at the start
+    # Example: "what skills can you assist with? Certainly!"
+    text = re.sub(r'^[^.!?]+\?\s*(?:Certainly|Yes|Sure|Of course)[!,]?\s*', '', text, flags=re.IGNORECASE)
     
     # Truncate at first "Human:" occurrence (fake dialogue)
     human_match = re.search(r'\bHuman:\s*', text, flags=re.IGNORECASE)
@@ -43,6 +54,19 @@ def clean_llm_response(text: str) -> str:
     
     # Remove any remaining "Assistant:" prefixes within the text
     text = re.sub(r'\bAssistant:\s*', '', text, flags=re.IGNORECASE)
+    
+    # Remove duplicate sentences (LLM sometimes repeats)
+    sentences = [s.strip() for s in re.split(r'([.!?]+\s+)', text) if s.strip()]
+    seen = set()
+    cleaned_sentences = []
+    for sentence in sentences:
+        # Normalize for comparison (lowercase, no punctuation)
+        normalized = re.sub(r'[^\w\s]', '', sentence.lower())
+        if normalized and normalized not in seen:
+            seen.add(normalized)
+            cleaned_sentences.append(sentence)
+    
+    text = ' '.join(cleaned_sentences)
     
     return text.strip()
 
@@ -53,9 +77,7 @@ def stream_chat():
     """
     Stream chat with thinking + word-by-word response
     
-    Timing follows industry best practices:
-    - Thinking: Real-time as LLM processes
-    - Response: Word-by-word streaming (40-50ms per word)
+    ✅ FIXED: Better timing and smoother streaming
     """
     user_id = request.user_id
     data = request.json
@@ -99,21 +121,7 @@ def stream_chat():
             )
             history = [{'role': row[0], 'content': row[1]} for row in cursor.fetchall()]
 
-            # ✅ THINKING PHASE - Runs WHILE LLM is processing
-            thinking_start_time = time.time()
-            
-            # Start thinking indicator
-            yield f"data: {json.dumps({'type': 'thinking_start', 'timestamp': thinking_start_time})}\n\n"
-            
-            # Generate thinking steps contextually
-            thinking_steps = _generate_thinking_steps(message)
-            
-            # Show thinking steps with realistic timing
-            for i, step in enumerate(thinking_steps, 1):
-                time.sleep(0.5)  # 500ms per step (natural reading pace)
-                yield f"data: {json.dumps({'type': 'thinking_step', 'content': step, 'step': i, 'timestamp': time.time()})}\n\n"
-
-            # ✅ GENERATE RESPONSE (happens during thinking)
+            # ✅ GENERATE RESPONSE FIRST (before showing thinking)
             if Config.USE_LANGCHAIN:
                 # Convert history to LangChain format
                 lc_history = []
@@ -127,9 +135,6 @@ def stream_chat():
                 result = qwen_lc.chat_chain.invoke({"input": message, "chat_history": lc_history})
                 full_response = result.get("text", "")
                 
-                # Clean the response
-                full_response = clean_llm_response(full_response)
-                
             else:
                 # Legacy path
                 base_agent = ChatAgent(model, tokenizer)
@@ -140,17 +145,42 @@ def stream_chat():
                     if event['type'] == 'response':
                         full_response += event.get('content', '')
 
-            # Complete thinking (total time thinking was shown)
+            # ✅ CLEAN THE RESPONSE AGGRESSIVELY
+            full_response = clean_llm_response(full_response)
+            
+            # ✅ THINKING PHASE - Show AFTER we have the response
+            thinking_start_time = time.time()
+            
+            # Start thinking indicator (immediate, no delay)
+            yield f"data: {json.dumps({'type': 'thinking_start', 'timestamp': thinking_start_time})}\n\n"
+            
+            # Generate thinking steps contextually
+            thinking_steps = _generate_thinking_steps(message)
+            
+            # Show thinking steps with realistic timing
+            for i, step in enumerate(thinking_steps, 1):
+                time.sleep(0.4)  # 400ms per step (faster pacing)
+                yield f"data: {json.dumps({'type': 'thinking_step', 'content': step, 'step': i, 'timestamp': time.time()})}\n\n"
+
+            # Complete thinking
             thinking_duration = time.time() - thinking_start_time
             yield f"data: {json.dumps({'type': 'thinking_complete', 'duration': thinking_duration, 'timestamp': time.time()})}\n\n"
 
-            # ✅ STREAMING PHASE - Word-by-word after thinking completes
-            words = full_response.split()
-            for word in words:
-                word_with_space = word + ' '
-                response_content += word_with_space
-                yield f"data: {json.dumps({'type': 'response', 'content': word_with_space})}\n\n"
-                time.sleep(0.045)  # 45ms per word (industry standard: 40-50ms)
+            # ✅ STREAMING PHASE - Character-by-character for smoother effect
+            # Stream character by character instead of word by word
+            for i, char in enumerate(full_response):
+                response_content += char
+                yield f"data: {json.dumps({'type': 'response', 'content': char})}\n\n"
+                
+                # Variable delay based on character type
+                if char in '.!?':
+                    time.sleep(0.15)  # Pause at sentence ends
+                elif char in ',;:':
+                    time.sleep(0.08)  # Pause at commas
+                elif char == ' ':
+                    time.sleep(0.03)  # Quick pause at spaces
+                else:
+                    time.sleep(0.02)  # 20ms per character (50 chars/sec)
 
             # Save assistant response (cleaned)
             if response_content:
@@ -183,50 +213,46 @@ def _generate_thinking_steps(message: str) -> list:
     """
     Generate contextual thinking steps based on query complexity
     
-    Returns 3-5 steps depending on query type
+    ✅ REDUCED: Fewer steps for faster UX
     """
     steps = []
     msg_lower = message.lower()
     
-    # Code-related queries (more complex thinking)
+    # Code-related queries (3 steps)
     if any(word in msg_lower for word in ['code', 'function', 'script', 'program', 'algorithm']):
         steps.extend([
-            "Analyzing code request and determining programming language",
-            "Planning code structure and key components",
-            "Considering edge cases and error handling",
-            "Optimizing for readability and performance"
+            "Analyzing code requirements",
+            "Planning implementation approach",
+            "Preparing code solution"
         ])
     
-    # Math/calculation queries
+    # Math/calculation queries (2 steps)
     elif any(word in msg_lower for word in ['calculate', 'compute', 'math', 'solve', 'equation']):
         steps.extend([
-            "Breaking down mathematical problem",
-            "Identifying required operations",
-            "Verifying calculation logic"
+            "Analyzing mathematical problem",
+            "Calculating solution"
         ])
     
-    # Explanation/teaching queries
+    # Explanation/teaching queries (3 steps)
     elif any(word in msg_lower for word in ['explain', 'what is', 'how does', 'why', 'teach', 'learn']):
         steps.extend([
-            "Analyzing the question context",
+            "Understanding the question",
             "Gathering relevant information",
-            "Structuring a clear explanation",
-            "Preparing examples for clarity"
+            "Structuring explanation"
         ])
     
-    # Complex multi-part queries (longer messages)
+    # Complex multi-part queries (3 steps)
     elif len(message) > 100:
         steps.extend([
-            "Understanding multi-part query structure",
-            "Prioritizing information gathering",
-            "Organizing comprehensive response",
-            "Ensuring all aspects are addressed"
+            "Analyzing query components",
+            "Organizing information",
+            "Preparing comprehensive response"
         ])
     
-    # Simple conversational queries (fewer steps)
+    # Simple conversational queries (2 steps only)
     else:
         steps.extend([
-            "Understanding query intent",
+            "Processing your question",
             "Formulating response"
         ])
     
