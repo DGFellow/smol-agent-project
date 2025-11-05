@@ -183,3 +183,46 @@ export interface ExportOptions {
   conversationId: number
   includeMetadata?: boolean
 }
+
+// ============================================
+// File Upload Types
+// ============================================
+
+export interface UploadedFile {
+  file_id: string
+  filename: string
+  original_name: string
+  size: number
+  mime_type: string
+  conversation_id?: number
+  uploaded_at: string
+  path: string
+}
+
+export interface FileUploadResponse {
+  success: boolean
+  file: UploadedFile
+  message?: string
+}
+
+export interface FileDeleteResponse {
+  success: boolean
+  file_id: string
+  message: string
+}
+
+export interface AttachedFile {
+  file: File
+  preview?: string
+  uploading: boolean
+  uploaded: boolean
+  uploadProgress?: number
+  fileId?: string
+  error?: string
+}
+
+export interface FilePreviewProps {
+  file: AttachedFile
+  onRemove: (file: File) => void
+  showProgress?: boolean
+}
