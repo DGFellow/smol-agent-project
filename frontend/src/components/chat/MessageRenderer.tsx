@@ -21,7 +21,7 @@ export function MessageRenderer({
 }: MessageRendererProps) {
   const [displayedContent, setDisplayedContent] = useState('')
   const [currentIndex, setCurrentIndex] = useState(0)
-  const timeoutRef = useRef<NodeJS.Timeout>()
+  const timeoutRef = useRef<NodeJS.Timeout | undefined>(undefined)
 
   useEffect(() => {
     if (!isStreaming) {

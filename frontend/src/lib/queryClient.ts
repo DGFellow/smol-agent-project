@@ -1,39 +1,36 @@
+// src/lib/queryClient.ts
 import { QueryClient } from '@tanstack/react-query'
 
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 1000 * 60 * 5,
-      gcTime: 1000 * 60 * 10,
+      staleTime: 1000 * 60 * 5, // 5 minutes
       retry: (failureCount, error: any) => {
-        // Don't retry on auth errors
-        if (error?.response?.status === 401 || error?.response?.status === 419) {
+        // Don't retry on 401 (auth errors)
+        if (error?.response?.status === 401) {
           return false
         }
-        // Retry other errors once
-        return failureCount < 1
+        // Don't retry on 403 (forbidden)
+        if (error?.response?.status === 403) {
+          return false
+        }
+        // Retry other errors up to 2 times
+        return failureCount < 2
       },
       refetchOnWindowFocus: false,
-      refetchOnMount: true,
     },
     mutations: {
-      retry: 0,
+      retry: false, // Never retry mutations
     },
   },
 })
 
-// Query keys for type safety and easy invalidation
 export const queryKeys = {
-  auth: {
-    verify: ['auth', 'verify'] as const,
-  },
   conversations: {
     all: ['conversations'] as const,
-    list: (params?: { limit?: number; offset?: number }) =>
-      ['conversations', 'list', params] as const,
-    detail: (id: number) => ['conversations', 'detail', id] as const,
+    detail: (id: number) => ['conversations', id] as const,
   },
-  health: {
-    status: ['health', 'status'] as const,
+  messages: {
+    list: (conversationId: number) => ['messages', conversationId] as const,
   },
-} as const
+}

@@ -1,31 +1,15 @@
-// src/components/chat/MessageList.tsx
-/**
- * MessageList - Renders list of messages with staggered animations
- * 
- * Features:
- * - Staggered entrance animations for messages
- * - Handles thinking indicator display
- * - Empty state handling
- * - Smooth scroll behavior
- */
-
+// src/components/chat/MessageList.tsx - WITH DEBUG LOGS
 import { motion, AnimatePresence } from 'framer-motion';
 import { MessageBubble } from './MessageBubble';
 import { useAppStore } from '@/store/appStore';
 import type { Message } from '@/types';
-
-interface ThinkingStep {
-  content: string;
-  step: number;
-  timestamp: number;
-}
 
 interface MessageListProps {
   messages: Message[];
   conversationId?: number;
   streamingMessage?: string;
   isStreaming?: boolean;
-  thinkingSteps?: ThinkingStep[];
+  thinkingSteps?: Array<{ content: string; step: number; timestamp: number }>;
 }
 
 export function MessageList({ 
@@ -36,6 +20,16 @@ export function MessageList({
   thinkingSteps = []
 }: MessageListProps) {
   const isThinking = useAppStore((state) => state.isThinking);
+
+  // 🔥 DEBUG LOGS
+  console.log('🎬 MessageList RENDER:', {
+    isStreaming,
+    streamingMessage,
+    streamingMessageLength: streamingMessage.length,
+    thinkingSteps: thinkingSteps.length,
+    isThinking,
+    messagesCount: messages.length
+  });
 
   // Empty state
   if (messages.length === 0 && !isThinking && !isStreaming) {
@@ -82,11 +76,16 @@ export function MessageList({
     visible: {
       opacity: 1,
       transition: {
-        staggerChildren: 0.08, // Stagger each message by 80ms
+        staggerChildren: 0.08,
         delayChildren: 0.1
       }
     }
   };
+
+  console.log('🎬 MessageList - About to render:', {
+    willRenderStreamingBubble: isStreaming && streamingMessage,
+    streamingMessagePreview: streamingMessage.substring(0, 50)
+  });
 
   return (
     <motion.div
@@ -96,6 +95,7 @@ export function MessageList({
       className="space-y-0"
     >
       <AnimatePresence mode="popLayout">
+        {/* Render all completed messages */}
         {messages.map((message) => (
           <MessageBubble 
             key={message.id} 
@@ -104,23 +104,24 @@ export function MessageList({
           />
         ))}
 
-        {(isThinking || isStreaming) && (
-          <MessageBubble 
+        {/* ✅ CRITICAL: Render streaming message */}
+        {isStreaming && streamingMessage && (
+          <MessageBubble
             key="streaming-message"
             message={{
               id: -1,
               role: 'assistant',
               content: streamingMessage,
+              created_at: new Date().toISOString(),
+              reaction: null,
               thinking: thinkingSteps.length > 0 ? {
                 steps: thinkingSteps,
                 duration: 0
-              } : undefined,
-              reaction: null
+              } : undefined
             }}
             conversationId={conversationId}
-            isStreaming={isStreaming}
+            isStreaming={true}
             streamingContent={streamingMessage}
-            isThinking={isThinking}
           />
         )}
       </AnimatePresence>

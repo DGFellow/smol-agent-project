@@ -91,9 +91,10 @@ export const useStreamingChat = () => {
                   break;
 
                 case 'response':
+                  // ✅ FIX: APPEND instead of REPLACE
                   setStreamState(prev => ({
                     ...prev,
-                    response: event.content
+                    response: prev.response + event.content
                   }));
                   break;
 

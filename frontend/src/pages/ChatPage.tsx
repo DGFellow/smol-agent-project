@@ -1,24 +1,57 @@
-// src/pages/ChatPage.tsx
 import { useEffect } from 'react'
 import { useAppStore } from '@/store/appStore'
 import { useChat } from '@/hooks/useChat'
 import { ChatView } from '@/components/chat/ChatView'
 import { HeroView } from '@/components/chat/HeroView'
+import { StreamingDebug } from '@/components/debug/StreamingDebug'
 
 export function ChatPage() {
-  const { currentConversationId, viewMode } = useAppStore()
-  const { conversation, isLoadingConversation } = useChat(currentConversationId)
+  const { currentConversationId, viewMode, isThinking } = useAppStore()
+
+  const chatHook = useChat(currentConversationId)
+  const {
+    conversation,
+    isLoadingConversation,
+    isStreaming,
+    streamingMessage,
+    thinkingSteps,
+    thinkingComplete,
+    isSending,
+  } = chatHook
 
   useEffect(() => {
-    console.log('ChatPage - conversationId:', currentConversationId)
-    console.log('ChatPage - viewMode:', viewMode)
-  }, [currentConversationId, viewMode])
+    console.log('🔥 ChatPage - DATA CHANGED:', {
+      conversationId: currentConversationId,
+      viewMode,
+      isStreaming,
+      streamingMessageLength: streamingMessage.length,
+      thinkingStepsCount: thinkingSteps.length,
+    })
+  }, [currentConversationId, viewMode, isStreaming, streamingMessage, thinkingSteps])
 
-  // Show hero view when no conversation
   if (viewMode === 'hero' || !currentConversationId) {
     return <HeroView />
   }
 
-  // Show chat view when conversation exists
-  return <ChatView conversation={conversation} isLoading={isLoadingConversation} />
+  return (
+    <>
+      <ChatView
+        conversation={conversation}
+        isLoading={isLoadingConversation}
+        isStreaming={isStreaming}
+        streamingMessage={streamingMessage}
+        thinkingSteps={thinkingSteps}
+      />
+
+      {/* 🔥 DEBUG OVERLAY (now receives props, no useChat inside) */}
+      <StreamingDebug
+        isThinking={isThinking}
+        isStreaming={isStreaming}
+        isSending={isSending}
+        thinkingStepsCount={thinkingSteps.length}
+        thinkingComplete={thinkingComplete}
+        streamingMessagePreview={streamingMessage}
+      />
+    </>
+  )
 }
