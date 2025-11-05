@@ -31,10 +31,15 @@ from src.database.conversation import Conversation
 # -------- Auth imports ----------
 from src.routes.auth import auth_bp
 from src.routes.chat_streaming import chat_bp
+from src.routes.files import files_bp
 from src.middleware.auth import token_required
 
 # -------- Config import ----------
 from config import Config  # Added for shared config
+
+## Temporary compatibility for file access after removing legacy upload config
+FILES_DIR = Path('data/documents')
+FILES_DIR.mkdir(parents=True, exist_ok=True)
 
 load_dotenv()
 
@@ -52,14 +57,7 @@ CORS(
 app.register_blueprint(auth_bp, url_prefix="/api/auth")
 app.register_blueprint(chat_bp, url_prefix='/api/chat')
 
-# File upload configuration
-UPLOAD_FOLDER = Path('data/documents')
-ALLOWED_EXTENSIONS = {'txt', 'pdf', 'docx', 'md', 'csv', 'json'}
-UPLOAD_FOLDER.mkdir(parents=True, exist_ok=True)
-
-def allowed_file(filename: str) -> bool:
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
-
+app.register_blueprint(files_bp, url_prefix='/api/files')
 # -------- Initialize database ----------
 db_manager = Database()
 db = db_manager.connect()
@@ -206,7 +204,7 @@ def unified_message():
         if files:
             # Process files (e.g., extract text from documents)
             for file_id in files:
-                file_path = UPLOAD_FOLDER / secure_filename(file_id)
+                file_path = FILES_DIR / secure_filename(file_id)
                 if file_path.exists():
                     with open(file_path, 'r') as f:
                         attached_content += f"\nAttached file content: {f.read()[:1000]}..."  # Truncate long content
@@ -465,43 +463,6 @@ def delete_conversation(conv_id):
         return jsonify({"message": "Conversation deleted"})
     else:
         return jsonify({"error": "Unauthorized or not found"}), 403
-
-# ============================================
-# FILE UPLOAD ENDPOINT
-# ============================================
-
-@app.route('/api/upload', methods=['POST'])
-@token_required
-def upload_file():
-    """Upload document for RAG"""
-    user_id = request.user_id
-    if 'file' not in request.files:
-        return jsonify({"error": "No file provided"}), 400
-
-    file = request.files['file']
-    conversation_id = request.form.get('conversation_id')
-
-    if file and allowed_file(file.filename):
-        filename = secure_filename(file.filename)
-        file_path = UPLOAD_FOLDER / filename
-        file.save(file_path)
-
-        # Process with RAG if LangChain enabled
-        if Config.USE_LANGCHAIN:  # Updated to use Config
-            rag = get_rag_system()
-            rag.add_document(str(file_path), metadata={
-                'user_id': user_id,
-                'conversation_id': conversation_id,
-                'filename': filename
-            })
-
-        return jsonify({
-            "message": "File uploaded",
-            "file_id": filename,
-            "path": str(file_path)
-        })
-
-    return jsonify({"error": "Invalid file type"}), 400
 
 # ============================================
 # CLEAR CONVERSATION ENDPOINT
