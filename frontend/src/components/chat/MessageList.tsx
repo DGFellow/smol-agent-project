@@ -1,7 +1,6 @@
-// src/components/chat/MessageList.tsx - WITH DEBUG LOGS
+// src/components/chat/MessageList.tsx - COMPLETELY FIXED
 import { motion, AnimatePresence } from 'framer-motion';
 import { MessageBubble } from './MessageBubble';
-import { useAppStore } from '@/store/appStore';
 import type { Message } from '@/types';
 
 interface MessageListProps {
@@ -19,20 +18,8 @@ export function MessageList({
   isStreaming = false,
   thinkingSteps = []
 }: MessageListProps) {
-  const isThinking = useAppStore((state) => state.isThinking);
-
-  // 🔥 DEBUG LOGS
-  console.log('🎬 MessageList RENDER:', {
-    isStreaming,
-    streamingMessage,
-    streamingMessageLength: streamingMessage.length,
-    thinkingSteps: thinkingSteps.length,
-    isThinking,
-    messagesCount: messages.length
-  });
-
   // Empty state
-  if (messages.length === 0 && !isThinking && !isStreaming) {
+  if (messages.length === 0 && !isStreaming) {
     return (
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
@@ -70,7 +57,6 @@ export function MessageList({
     );
   }
 
-  // Container animation with stagger
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
@@ -81,11 +67,6 @@ export function MessageList({
       }
     }
   };
-
-  console.log('🎬 MessageList - About to render:', {
-    willRenderStreamingBubble: isStreaming && streamingMessage,
-    streamingMessagePreview: streamingMessage.substring(0, 50)
-  });
 
   return (
     <motion.div
@@ -104,7 +85,7 @@ export function MessageList({
           />
         ))}
 
-        {/* ✅ CRITICAL: Render streaming message */}
+        {/* ✅ SINGLE streaming message - only show when actively streaming */}
         {isStreaming && streamingMessage && (
           <MessageBubble
             key="streaming-message"
@@ -121,7 +102,6 @@ export function MessageList({
             }}
             conversationId={conversationId}
             isStreaming={true}
-            streamingContent={streamingMessage}
           />
         )}
       </AnimatePresence>
