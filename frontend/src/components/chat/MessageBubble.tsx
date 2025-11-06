@@ -1,4 +1,4 @@
-// src/components/chat/MessageBubble.tsx - WITH DEBUG LOGS
+// src/components/chat/MessageBubble.tsx - COMPLETELY FIXED
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { User, Bot } from 'lucide-react';
@@ -20,32 +20,17 @@ interface MessageBubbleProps {
   };
   conversationId?: number;
   isStreaming?: boolean;
-  streamingContent?: string;
 }
 
 export const MessageBubble: React.FC<MessageBubbleProps> = ({ 
   message,
   conversationId,
   isStreaming = false,
-  streamingContent = ''
 }) => {
   const isUser = message.role === 'user';
   const [isEditing, setIsEditing] = useState(false);
   const [editedContent, setEditedContent] = useState(message.content);
   const { reactToMessage, regenerateMessage } = useChat(conversationId);
-
-  const displayContent = isStreaming && streamingContent ? streamingContent : message.content;
-
-  // 🔥 DEBUG LOGS
-  console.log('💬 MessageBubble RENDER:', {
-    role: message.role,
-    messageId: message.id,
-    isStreaming,
-    streamingContent: streamingContent.substring(0, 50),
-    displayContent: displayContent.substring(0, 50),
-    hasThinking: !!message.thinking,
-    thinkingSteps: message.thinking?.steps.length || 0
-  });
 
   const messageVariants = {
     hidden: { 
@@ -65,8 +50,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
   };
 
   const handleCopy = async () => {
-    const textToCopy = isStreaming && streamingContent ? streamingContent : message.content;
-    await navigator.clipboard.writeText(textToCopy);
+    await navigator.clipboard.writeText(message.content);
   };
 
   const handleEdit = () => {
@@ -172,8 +156,8 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
                 Assistant
               </div>
 
-              {/* Thinking Indicator */}
-              {message.thinking && (
+              {/* ✅ Thinking Indicator - Show during streaming OR if historical thinking exists */}
+              {message.thinking && message.thinking.steps.length > 0 && (
                 <div className="mb-3">
                   <ThinkingIndicator
                     steps={message.thinking.steps}
@@ -183,13 +167,13 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
                 </div>
               )}
 
-              {/* Message Content - Use MessageRenderer for streaming */}
+              {/* Message Content */}
               <MessageRenderer
-                content={displayContent}
+                content={message.content}
                 isStreaming={isStreaming}
               />
 
-              {/* Actions */}
+              {/* Actions - Only show for completed messages */}
               {!isStreaming && message.id !== -1 && (
                 <MessageActions
                   messageId={message.id}
