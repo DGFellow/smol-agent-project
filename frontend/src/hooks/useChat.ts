@@ -1,5 +1,5 @@
-// frontend/src/hooks/useChat.ts - FIXED: Proper Zustand selector
-import { useState, useCallback, useEffect } from 'react'
+// frontend/src/hooks/useChat.ts - COMPLETELY FIXED
+import { useState, useCallback, useEffect, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { conversationApi, messageApi, getErrorMessage } from '@/lib/api'
 import { queryKeys } from '@/lib/queryClient'
@@ -15,9 +15,9 @@ interface Toast {
 }
 
 /**
- * useChat - Pure selector over Zustand store + send API
+ * useChat - Proper Zustand integration with stable selectors
  * 
- * ✅ FIXED: Use separate selectors to avoid infinite loops
+ * ✅ FIXED: Use stable selectors + useMemo to prevent re-render loops
  */
 export function useChat(conversationId?: number | null) {
   const queryClient = useQueryClient()
@@ -25,22 +25,33 @@ export function useChat(conversationId?: number | null) {
 
   const hasToken = !!localStorage.getItem('token')
 
-  // ✅ FIX: Select primitives separately (not as object)
+  // ✅ FIX: Use stable, individual selectors
   const isStreaming = useAppStore((state) => state.isStreaming)
   const isSending = useAppStore((state) => state.isSending)
-  const streamingByConv = useAppStore((state) => state.streamingByConv)
+  const currentConversationId = useAppStore((state) => state.currentConversationId)
   const setCurrentConversationId = useAppStore((state) => state.setCurrentConversationId)
   const setViewMode = useAppStore((state) => state.setViewMode)
   const clearStreamingState = useAppStore((state) => state.clearStreamingState)
 
-  // Get streaming state for current conversation
-  const stateKey = conversationId ?? 'pending'
-  const streaming = streamingByConv[stateKey] || {
-    streamingMessage: '',
-    thinkingSteps: [],
-    thinkingComplete: false,
-    thinkingDuration: undefined,
-  }
+  // ✅ FIX: Get streaming state for CURRENT conversation with stable selector
+  const stateKey = conversationId ?? currentConversationId ?? 'pending'
+  
+  const streamingState = useAppStore(
+    useCallback(
+      (state) => state.streamingByConv[stateKey],
+      [stateKey]
+    )
+  )
+
+  // ✅ FIX: Memoize the streaming object to prevent unnecessary re-renders
+  const streaming = useMemo(() => {
+    return streamingState || {
+      streamingMessage: '',
+      thinkingSteps: [],
+      thinkingComplete: false,
+      thinkingDuration: undefined,
+    }
+  }, [streamingState])
 
   const showToast = useCallback((message: string, type: ToastType = 'info') => {
     const id = Date.now().toString()
@@ -73,7 +84,7 @@ export function useChat(conversationId?: number | null) {
   const conversation = conversationData?.conversation || null
   const messages = conversation?.messages || []
 
-  // ✅ DELEGATE TO ChatService (no local state management)
+  // ✅ DELEGATE TO ChatService
   const sendMutation = useMutation({
     mutationFn: async (request: MessageRequest) => {
       return ChatService.send({
@@ -249,8 +260,6 @@ export function useChat(conversationId?: number | null) {
     setSearchResults(filtered)
   }, [searchQuery, conversationsData])
 
-  console.log('🎯 useChat RENDER - isStreaming:', isStreaming, 'streamingMessage length:', streaming.streamingMessage.length)
-
   return {
     conversations: conversationsData?.conversations || [],
     isLoadingConversations: isLoadingList,
@@ -261,7 +270,7 @@ export function useChat(conversationId?: number | null) {
     isLoadingConversation,
     refetchConversation,
     
-    // ✅ FROM ZUSTAND, NOT LOCAL STATE
+    // ✅ FROM ZUSTAND with stable references
     isStreaming,
     isSending,
     streamingMessage: streaming.streamingMessage,
