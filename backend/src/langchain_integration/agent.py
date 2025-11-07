@@ -1,3 +1,4 @@
+# agent.py
 """
 LangChain Agent with Tools
 Wraps your existing tools and creates an agent that can reason about which tool to use
@@ -9,12 +10,14 @@ from typing import Optional, List, Dict
 from langchain.agents import AgentExecutor
 from langchain.agents import initialize_agent as lc_initialize_agent, AgentType
 from langchain.tools import Tool
+from langchain.prompts import PromptTemplate
 
 # Your tools (absolute imports; no sys.path hacks)
 from src.tools.calculator import Calculator
 from src.tools.web_search import WebSearch
 from src.tools.code_executor import CodeExecutor
 from src.tools.document_search import create_document_search_tool
+from src.prompts import PromptTemplates  # Import for custom prompt
 
 
 def _summarize_search(results: List[Dict[str, str]]) -> str:
@@ -102,6 +105,9 @@ class QwenAgent:
         Create a ReAct-style agent that works with plain text-generation LLMs
         (e.g., HuggingFacePipeline). No .bind_tools required.
         """
+        custom_prompt = PromptTemplate.from_template(
+            PromptTemplates.CHAT_AGENT_SYSTEM + "\n\n{input}"  # Use simplified prompt
+        )
         self.agent_executor = lc_initialize_agent(
             tools=self.tools,
             llm=self.llm,
@@ -109,6 +115,7 @@ class QwenAgent:
             verbose=False,
             handle_parsing_errors=True,
             max_iterations=3,
+            prompt=custom_prompt  # Override default
         )
 
     def run(self, query: str, chat_history: Optional[List[Dict]] = None) -> str:

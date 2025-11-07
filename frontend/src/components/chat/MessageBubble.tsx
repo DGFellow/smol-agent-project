@@ -1,4 +1,4 @@
-// src/components/chat/MessageBubble.tsx - COMPLETELY FIXED
+// src/components/chat/MessageBubble.tsx - ACTUAL FIX
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { User, Bot } from 'lucide-react';
@@ -156,13 +156,13 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
                 Assistant
               </div>
 
-              {/* ✅ Thinking Indicator - Show during streaming OR if historical thinking exists */}
-              {message.thinking && message.thinking.steps.length > 0 && (
+              {/* ✅ FIXED: Show ThinkingIndicator when streaming OR if historical thinking exists */}
+              {(isStreaming || (message.thinking && message.thinking.steps.length > 0)) && (
                 <div className="mb-3">
                   <ThinkingIndicator
-                    steps={message.thinking.steps}
+                    steps={message.thinking?.steps || []}
                     isComplete={!isStreaming}
-                    duration={message.thinking.duration}
+                    duration={message.thinking?.duration || 0}
                   />
                 </div>
               )}
