@@ -1,4 +1,3 @@
-// FIXED: Accept props instead of calling useChat
 import { useEffect, useRef } from 'react'
 import { Loader2 } from 'lucide-react'
 import { motion } from 'framer-motion'
@@ -11,6 +10,9 @@ interface ChatViewProps {
   isStreaming: boolean
   streamingMessage: string
   thinkingSteps: Array<{ content: string; step: number; timestamp: number }>
+  isThinking: boolean
+  thinkingComplete: boolean
+  thinkingDuration?: number
 }
 
 export function ChatView({
@@ -19,13 +21,22 @@ export function ChatView({
   isStreaming,
   streamingMessage,
   thinkingSteps,
+  isThinking,
+  thinkingComplete,
+  thinkingDuration,
 }: ChatViewProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   // Auto-scroll when messages change or streaming updates
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
-  }, [conversation?.messages?.length, streamingMessage, thinkingSteps.length])
+  }, [
+    conversation?.messages?.length, 
+    streamingMessage, 
+    thinkingSteps.length,
+    isStreaming,
+    isThinking
+  ])
 
   // Initial scroll when conversation loads
   useEffect(() => {
@@ -74,6 +85,9 @@ export function ChatView({
               streamingMessage={streamingMessage}
               isStreaming={isStreaming}
               thinkingSteps={thinkingSteps}
+              isThinking={isThinking}
+              thinkingComplete={thinkingComplete}
+              thinkingDuration={thinkingDuration}
             />
           ) : (
             <div className="text-center text-white/50 py-12">
