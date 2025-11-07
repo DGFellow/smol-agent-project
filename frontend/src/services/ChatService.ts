@@ -1,7 +1,6 @@
-// frontend/src/services/ChatService.ts
+// frontend/src/services/ChatService.ts - REFACTORED
 import { useAppStore } from '@/store/appStore'
 import api from '@/lib/api'
-import type { ThinkingStep } from '@/types'
 
 interface SendMessageParams {
   conversationId?: number | null
@@ -20,26 +19,23 @@ interface StreamEvent {
 }
 
 /**
- * ChatService - Singleton for managing streaming chat
+ * ChatService - Clean state management for streaming
  * 
- * This service:
- * - Decouples streaming logic from React component lifecycle
- * - Manages global streaming flags in Zustand store
- * - Handles conversation bootstrap (null → new ID) without state resets
- * - Emits lifecycle events that update the store
+ * Flow:
+ * 1. thinking_start → isThinking: true
+ * 2. thinking_step → accumulate steps
+ * 3. thinking_complete → isThinking: false
+ * 4. response (first token) → isStreaming: true
+ * 5. response (subsequent) → append to streamingMessage
+ * 6. [DONE] → isStreaming: false
  */
 class ChatServiceClass {
   private currentAbortController: AbortController | null = null
 
-  /**
-   * Send a message and stream the response
-   * This is the single source of truth for streaming state
-   */
   async send({ conversationId, content, files = [] }: SendMessageParams): Promise<{
     content: string
     newConversationId?: number
   }> {
-    // Abort any existing stream
     this.abort()
 
     const ctrl = new AbortController()
@@ -47,9 +43,9 @@ class ChatServiceClass {
 
     const store = useAppStore.getState()
     const {
-      setIsStreaming,
-      setIsSending,
+      setIsAnswering,
       setThinking,
+      setStreaming,
       upsertStreamingState,
       clearStreamingState,
       setCurrentConversationId,
@@ -57,18 +53,15 @@ class ChatServiceClass {
       migrateStreamingState,
     } = store
 
-    // Determine the key for storing streaming state
     let stateKey: number | 'pending' = conversationId ?? 'pending'
 
-    console.log('🚀 Starting stream for message:', content.substring(0, 50))
-    console.log('📍 Conversation ID:', conversationId, '| State key:', stateKey)
+    console.log('🚀 Starting stream')
 
-    // ✅ SET FLAGS BEFORE ANY AWAITS
-    console.log('🔥🔥🔥 SETTING isStreaming TO TRUE')
-    setIsStreaming(true)
-    setIsSending(true)
+    // ✅ START: Set isAnswering (entire cycle)
+    setIsAnswering(true)
+    setThinking(false)
+    setStreaming(false)
 
-    // Clear any existing streaming state for this conversation
     clearStreamingState(stateKey)
 
     let fullResponse = ''
@@ -89,23 +82,15 @@ class ChatServiceClass {
         signal: ctrl.signal,
       })
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
-      }
-
-      if (!response.body) {
-        throw new Error('No response body')
-      }
+      if (!response.ok) throw new Error(`HTTP ${response.status}`)
+      if (!response.body) throw new Error('No response body')
 
       const reader = response.body.getReader()
       const decoder = new TextDecoder()
 
       while (true) {
         const { done, value } = await reader.read()
-        if (done) {
-          console.log('✅ Stream complete')
-          break
-        }
+        if (done) break
 
         const chunk = decoder.decode(value)
         const lines = chunk.split('\n')
@@ -113,28 +98,37 @@ class ChatServiceClass {
         for (const line of lines) {
           if (line.startsWith('data: ')) {
             const data = line.slice(6)
-            if (data === '[DONE]') {
-              console.log('✅ Received [DONE] signal')
-              break
-            }
+            if (data === '[DONE]') break
 
             try {
               const event: StreamEvent = JSON.parse(data)
-              console.log('📦 SSE Event:', event.type)
 
               switch (event.type) {
+                case 'metadata':
+                  if (event.conversation_id && !conversationId) {
+                    newConversationId = event.conversation_id
+                    setCurrentConversationId(newConversationId)
+                    setViewMode('chat')
+                    
+                    if (stateKey === 'pending') {
+                      migrateStreamingState('pending', newConversationId)
+                      stateKey = newConversationId
+                    }
+                  }
+                  break
+
                 case 'thinking_start':
                   console.log('🧠 Thinking started')
                   setThinking(true)
                   upsertStreamingState(stateKey, {
                     thinkingSteps: [],
                     thinkingComplete: false,
+                    streamingMessage: ''
                   })
                   break
 
                 case 'thinking_step':
-                  console.log('💭 Thinking step:', event.step)
-                  if (event.content !== undefined && event.step !== undefined && event.timestamp !== undefined) {
+                  if (event.content && event.step !== undefined && event.timestamp !== undefined) {
                     upsertStreamingState(stateKey, (prev) => ({
                       ...prev,
                       thinkingSteps: [
@@ -159,7 +153,12 @@ class ChatServiceClass {
                   break
 
                 case 'response':
-                  console.log('💬 Response token')
+                  // First response token - start streaming
+                  if (fullResponse.length === 0) {
+                    console.log('📡 Streaming started')
+                    setStreaming(true)
+                  }
+                  
                   if (event.content !== undefined) {
                     fullResponse += event.content
                     upsertStreamingState(stateKey, (prev) => ({
@@ -169,30 +168,13 @@ class ChatServiceClass {
                   }
                   break
 
-                case 'metadata':
-                  if (event.conversation_id && !conversationId) {
-                    console.log('🆔 New conversation ID:', event.conversation_id)
-                    newConversationId = event.conversation_id
-                    
-                    // ✅ UPDATE ID WITHOUT RESETTING STREAMING FLAGS
-                    setCurrentConversationId(newConversationId)
-                    setViewMode('chat')
-                    
-                    // ✅ MIGRATE STATE FROM 'pending' TO NEW ID
-                    if (stateKey === 'pending') {
-                      migrateStreamingState('pending', newConversationId)
-                      stateKey = newConversationId
-                    }
-                  }
-                  break
-
                 case 'error':
                   console.error('❌ Stream error:', event.message)
                   throw new Error(event.message || 'Stream error')
               }
             } catch (e) {
               if (e instanceof Error && e.message !== 'Stream error') {
-                console.error('Failed to parse SSE data:', e)
+                console.error('Failed to parse SSE:', e)
               } else {
                 throw e
               }
@@ -206,45 +188,36 @@ class ChatServiceClass {
         newConversationId,
       }
     } catch (error) {
-      // Only log if it's not an abort
       if (error instanceof Error && error.name !== 'AbortError') {
         console.error('❌ Stream error:', error)
       }
       throw error
     } finally {
-      // ✅ ALWAYS RESET FLAGS IN FINALLY
-      console.log('🔥🔥🔥 SETTING isStreaming TO FALSE')
-      setIsStreaming(false)
-      setIsSending(false)
+      // ✅ END: Clear all flags
+      console.log('✅ Stream finished')
+      setIsAnswering(false)
       setThinking(false)
+      setStreaming(false)
       this.currentAbortController = null
     }
   }
 
-  /**
-   * Abort the current stream
-   */
   abort() {
     if (this.currentAbortController) {
-      console.log('🛑 Aborting current stream')
+      console.log('🛑 Aborting stream')
       this.currentAbortController.abort()
       this.currentAbortController = null
 
-      // Reset flags immediately
-      const { setIsStreaming, setIsSending, setThinking } = useAppStore.getState()
-      setIsStreaming(false)
-      setIsSending(false)
+      const { setIsAnswering, setThinking, setStreaming } = useAppStore.getState()
+      setIsAnswering(false)
       setThinking(false)
+      setStreaming(false)
     }
   }
 
-  /**
-   * Check if currently streaming
-   */
-  isCurrentlyStreaming(): boolean {
-    return useAppStore.getState().isStreaming
+  isCurrentlyAnswering(): boolean {
+    return useAppStore.getState().isAnswering
   }
 }
 
-// Export singleton instance
 export const ChatService = new ChatServiceClass()

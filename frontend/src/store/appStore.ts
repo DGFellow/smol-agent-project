@@ -1,4 +1,4 @@
-// src/store/appStore.ts
+// src/store/appStore.ts - UNIFIED isAnswering
 import { create } from 'zustand'
 
 type ViewMode = 'hero' | 'chat' | 'projects' | 'settings'
@@ -30,17 +30,17 @@ interface AppState {
   viewMode: ViewMode
   setViewMode: (mode: ViewMode) => void
   
-  // Thinking state (deprecated - use isStreaming instead)
+  // ✅ UNIFIED: Single flag for entire answer cycle
+  isAnswering: boolean
+  setIsAnswering: (value: boolean) => void
+  
+  // Sub-states (for UI details)
   isThinking: boolean
-  setThinking: (thinking: boolean) => void
-  
-  // ✨ NEW: Global streaming flags (lifecycle-stable)
   isStreaming: boolean
-  isSending: boolean
-  setIsStreaming: (value: boolean) => void
-  setIsSending: (value: boolean) => void
+  setThinking: (thinking: boolean) => void
+  setStreaming: (streaming: boolean) => void
   
-  // ✨ NEW: Streaming state by conversation (keyed storage)
+  // Streaming state by conversation
   streamingByConv: Record<number | 'pending', StreamingState>
   upsertStreamingState: (
     convId: number | 'pending',
@@ -86,26 +86,26 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ viewMode: mode })
   },
   
-  // Thinking state (legacy)
+  // ✅ UNIFIED answering state
+  isAnswering: false,
+  setIsAnswering: (value) => {
+    console.log('💬 Setting isAnswering:', value)
+    set({ isAnswering: value })
+  },
+  
+  // Sub-states
   isThinking: false,
+  isStreaming: false,
   setThinking: (thinking) => {
-    console.log('🧠 Setting thinking state:', thinking)
+    console.log('🧠 Setting thinking:', thinking)
     set({ isThinking: thinking })
   },
-  
-  // ✨ NEW: Global streaming flags
-  isStreaming: false,
-  isSending: false,
-  setIsStreaming: (value) => {
-    console.log('🔥🔥🔥 STORE: Setting isStreaming to', value)
-    set({ isStreaming: value })
-  },
-  setIsSending: (value) => {
-    console.log('📤 STORE: Setting isSending to', value)
-    set({ isSending: value })
+  setStreaming: (streaming) => {
+    console.log('📡 Setting streaming:', streaming)
+    set({ isStreaming: streaming })
   },
   
-  // ✨ NEW: Streaming state storage
+  // Streaming state storage
   streamingByConv: {},
   
   upsertStreamingState: (convId, patch) => {

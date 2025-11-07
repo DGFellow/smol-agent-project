@@ -1,4 +1,4 @@
-// frontend/src/hooks/useChat.ts - COMPLETELY FIXED
+// frontend/src/hooks/useChat.ts - Use isAnswering
 import { useState, useCallback, useEffect, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { conversationApi, messageApi, getErrorMessage } from '@/lib/api'
@@ -14,26 +14,21 @@ interface Toast {
   message: string
 }
 
-/**
- * useChat - Proper Zustand integration with stable selectors
- * 
- * ✅ FIXED: Use stable selectors + useMemo to prevent re-render loops
- */
 export function useChat(conversationId?: number | null) {
   const queryClient = useQueryClient()
   const [toasts, setToasts] = useState<Toast[]>([])
 
   const hasToken = !!localStorage.getItem('token')
 
-  // ✅ FIX: Use stable, individual selectors
+  // ✅ Get unified state + sub-states
+  const isAnswering = useAppStore((state) => state.isAnswering)
+  const isThinking = useAppStore((state) => state.isThinking)
   const isStreaming = useAppStore((state) => state.isStreaming)
-  const isSending = useAppStore((state) => state.isSending)
   const currentConversationId = useAppStore((state) => state.currentConversationId)
   const setCurrentConversationId = useAppStore((state) => state.setCurrentConversationId)
   const setViewMode = useAppStore((state) => state.setViewMode)
   const clearStreamingState = useAppStore((state) => state.clearStreamingState)
 
-  // ✅ FIX: Get streaming state for CURRENT conversation with stable selector
   const stateKey = conversationId ?? currentConversationId ?? 'pending'
   
   const streamingState = useAppStore(
@@ -43,7 +38,6 @@ export function useChat(conversationId?: number | null) {
     )
   )
 
-  // ✅ FIX: Memoize the streaming object to prevent unnecessary re-renders
   const streaming = useMemo(() => {
     return streamingState || {
       streamingMessage: '',
@@ -84,7 +78,6 @@ export function useChat(conversationId?: number | null) {
   const conversation = conversationData?.conversation || null
   const messages = conversation?.messages || []
 
-  // ✅ DELEGATE TO ChatService
   const sendMutation = useMutation({
     mutationFn: async (request: MessageRequest) => {
       return ChatService.send({
@@ -151,7 +144,6 @@ export function useChat(conversationId?: number | null) {
 
         queryClient.invalidateQueries({ queryKey: queryKeys.conversations.detail(effectiveId) })
         
-        // Clear streaming state after successful completion
         clearStreamingState(effectiveId)
         if (stateKey === 'pending') {
           clearStreamingState('pending')
@@ -170,7 +162,6 @@ export function useChat(conversationId?: number | null) {
         )
       }
       
-      // Clear streaming state on error
       clearStreamingState(stateKey)
     },
   })
@@ -270,9 +261,10 @@ export function useChat(conversationId?: number | null) {
     isLoadingConversation,
     refetchConversation,
     
-    // ✅ FROM ZUSTAND with stable references
+    // ✅ Unified + sub-states
+    isAnswering,
+    isThinking,
     isStreaming,
-    isSending,
     streamingMessage: streaming.streamingMessage,
     thinkingSteps: streaming.thinkingSteps,
     thinkingComplete: streaming.thinkingComplete,
