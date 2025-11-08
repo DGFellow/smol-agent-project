@@ -252,7 +252,7 @@ export function useChat(conversationId?: number | null) {
   }, [searchQuery, conversationsData])
 
   return {
-    conversations: conversationsData?.conversations || [],
+    conversations: conversationsData?.conversations ?? [],
     isLoadingConversations: isLoadingList,
     refetchConversations,
     

@@ -1,5 +1,6 @@
-// frontend/src/services/ChatService.ts - REFACTORED
+// frontend/src/services/ChatService.ts - WITH TOASTS
 import { useAppStore } from '@/store/appStore'
+import { useToastStore } from '@/store/toastStore'
 import api from '@/lib/api'
 
 interface SendMessageParams {
@@ -18,17 +19,6 @@ interface StreamEvent {
   message?: string
 }
 
-/**
- * ChatService - Clean state management for streaming
- * 
- * Flow:
- * 1. thinking_start → isThinking: true
- * 2. thinking_step → accumulate steps
- * 3. thinking_complete → isThinking: false
- * 4. response (first token) → isStreaming: true
- * 5. response (subsequent) → append to streamingMessage
- * 6. [DONE] → isStreaming: false
- */
 class ChatServiceClass {
   private currentAbortController: AbortController | null = null
 
@@ -82,8 +72,13 @@ class ChatServiceClass {
         signal: ctrl.signal,
       })
 
-      if (!response.ok) throw new Error(`HTTP ${response.status}`)
-      if (!response.body) throw new Error('No response body')
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`)
+      }
+      
+      if (!response.body) {
+        throw new Error('No response body')
+      }
 
       const reader = response.body.getReader()
       const decoder = new TextDecoder()
@@ -190,6 +185,14 @@ class ChatServiceClass {
     } catch (error) {
       if (error instanceof Error && error.name !== 'AbortError') {
         console.error('❌ Stream error:', error)
+        
+        // Show toast notification
+        const { addToast } = useToastStore.getState()
+        addToast({
+          type: 'error',
+          message: error.message || 'Failed to send message',
+          duration: 5000
+        })
       }
       throw error
     } finally {
