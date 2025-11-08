@@ -1,4 +1,4 @@
-// src/components/sidebar/ConversationList.tsx
+// src/components/sidebar/ConversationList.tsx - SAFE
 import { useState } from 'react'
 import { Search, Trash2, Edit2, X, MessageSquare } from 'lucide-react'
 import { useChat } from '@/hooks/useChat'
@@ -15,14 +15,16 @@ export function ConversationList() {
     updateTitle,
   } = useChat()
   
-  // ✅ FIX: Select each value separately
   const currentConversationId = useAppStore((state) => state.currentConversationId)
   const setCurrentConversationId = useAppStore((state) => state.setCurrentConversationId)
   
   const [editingId, setEditingId] = useState<number | null>(null)
   const [editTitle, setEditTitle] = useState('')
 
-  const displayConversations = searchQuery.trim() ? searchResults : conversations
+  // ✅ SAFE: Always ensure arrays exist
+  const displayConversations = searchQuery.trim() 
+    ? (searchResults ?? []) 
+    : (conversations ?? [])
 
   const handleSelect = (id: number) => {
     setCurrentConversationId(id)
@@ -90,7 +92,7 @@ export function ConversationList() {
         
         {searchQuery && (
           <div className="text-xs text-gray-500 mt-1 px-1">
-            {searchResults.length} result{searchResults.length !== 1 ? 's' : ''}
+            {displayConversations.length} result{displayConversations.length !== 1 ? 's' : ''}
           </div>
         )}
       </div>
@@ -161,10 +163,10 @@ export function ConversationList() {
 
               {/* Message count */}
               <div className="text-xs text-gray-500">
-                {conv.message_count} message{conv.message_count !== 1 ? 's' : ''}
+                {conv.message_count || 0} message{(conv.message_count || 0) !== 1 ? 's' : ''}
               </div>
 
-              {/* Action buttons - FIXED: Only show on hover, don't interfere with parent */}
+              {/* Action buttons */}
               <div 
                 className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-gray-900 rounded-md p-1"
                 onClick={(e) => e.stopPropagation()}

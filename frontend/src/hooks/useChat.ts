@@ -1,4 +1,4 @@
-// frontend/src/hooks/useChat.ts - Use isAnswering
+// frontend/src/hooks/useChat.ts - DON'T ADD DUPLICATE MESSAGE
 import { useState, useCallback, useEffect, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { conversationApi, messageApi, getErrorMessage } from '@/lib/api'
@@ -20,7 +20,6 @@ export function useChat(conversationId?: number | null) {
 
   const hasToken = !!localStorage.getItem('token')
 
-  // ✅ Get unified state + sub-states
   const isAnswering = useAppStore((state) => state.isAnswering)
   const isThinking = useAppStore((state) => state.isThinking)
   const isStreaming = useAppStore((state) => state.isStreaming)
@@ -119,31 +118,11 @@ export function useChat(conversationId?: number | null) {
     },
     onSuccess: (result) => {
       const effectiveId = result.newConversationId || conversationId
+      
+      // ✅ FIXED: Don't manually add assistant message - backend already saved it
+      // Just refetch to get the complete message from server
       if (effectiveId) {
-        const assistantMessage: Message = {
-          id: Date.now() + 1,
-          content: result.content || streaming.streamingMessage,
-          role: 'assistant',
-          created_at: new Date().toISOString(),
-          reaction: null,
-          thinking: streaming.thinkingSteps.length > 0 ? {
-            steps: streaming.thinkingSteps,
-            duration: streaming.thinkingDuration || 0
-          } : undefined
-        }
-
-        queryClient.setQueryData<ConversationResponse>(
-          queryKeys.conversations.detail(effectiveId),
-          (old: ConversationResponse | undefined) => ({
-            conversation: {
-              ...old!.conversation,
-              messages: [...(old?.conversation.messages || []), assistantMessage],
-            },
-          })
-        )
-
         queryClient.invalidateQueries({ queryKey: queryKeys.conversations.detail(effectiveId) })
-        
         clearStreamingState(effectiveId)
         if (stateKey === 'pending') {
           clearStreamingState('pending')
@@ -261,7 +240,6 @@ export function useChat(conversationId?: number | null) {
     isLoadingConversation,
     refetchConversation,
     
-    // ✅ Unified + sub-states
     isAnswering,
     isThinking,
     isStreaming,

@@ -1,3 +1,4 @@
+# chains.py
 """
 LangChain Integration - Chains
 Wraps your existing models with LangChain for advanced orchestration
@@ -80,7 +81,7 @@ class QwenLangChain:
             model=instruct_model,
             tokenizer=instruct_tokenizer,
             max_new_tokens=512,
-            temperature=0.7,
+            temperature=0.3,  # Lowered for determinism
             do_sample=True,
             top_p=0.9,
             return_full_text=False,  # prevents prompt echo
@@ -126,7 +127,7 @@ class QwenLangChain:
         """Create LangChain runnables for different tasks and adapt to dict-return."""
 
         # ----------------
-        # Chat chain - IMPROVED SYSTEM PROMPT
+        # Chat chain - SIMPLIFIED SYSTEM PROMPT (no examples)
         # ----------------
         chat_prompt = ChatPromptTemplate.from_messages(
             [
@@ -136,12 +137,11 @@ class QwenLangChain:
                     "CRITICAL INSTRUCTIONS:\n"
                     "- Respond ONLY as the assistant. Never write 'Assistant:' or 'Human:' in your responses.\n"
                     "- Do NOT generate hypothetical conversations or dialogue between multiple speakers.\n"
-                    "- Do NOT simulate back-and-forth exchanges.\n"
-                    "- Provide your answer directly without any role labels or prefixes.\n"
+                    "- Do NOT simulate back-and-forth exchanges or invent questions.\n"
+                    "- Do NOT include reasoning steps, clarifications, or phrases like 'To be more specific', 'Based on the information', 'Concisely', or 'Let me think' in your final output.\n"
+                    "- Provide your answer directly without any role labels, prefixes, or internal thoughts.\n"
                     "- Be conversational and friendly while remaining professional.\n"
-                    "- Focus on answering the user's actual question, not imagining future conversations.\n\n"
-                    "CORRECT: 'I can help you with coding, writing, and answering questions.'\n"
-                    "INCORRECT: 'Assistant: I can help... Human: What about... Assistant: Sure...'"
+                    "- Focus solely on answering the user's actual question."
                 ),
                 MessagesPlaceholder(variable_name="chat_history"),
                 ("human", "{input}"),
@@ -152,7 +152,7 @@ class QwenLangChain:
         self.chat_chain = _DictReturningChain(chat_runnable)
 
         # ----------------
-        # Code generation - IMPROVED SYSTEM PROMPT
+        # Code generation - SIMPLIFIED SYSTEM PROMPT (no examples)
         # ----------------
         code_prompt = ChatPromptTemplate.from_messages(
             [
