@@ -1,4 +1,4 @@
-// frontend/src/services/ChatService.ts - WITH TOASTS
+// frontend/src/services/ChatService.ts - IMPROVED ERROR HANDLING
 import { useAppStore } from '@/store/appStore'
 import { useToastStore } from '@/store/toastStore'
 import api from '@/lib/api'
@@ -10,7 +10,7 @@ interface SendMessageParams {
 }
 
 interface StreamEvent {
-  type: 'thinking_start' | 'thinking_step' | 'thinking_complete' | 'response' | 'metadata' | 'error'
+  type: 'thinking_start' | 'thinking_step' | 'thinking_complete' | 'response' | 'metadata' | 'complete' | 'error'
   content?: string
   step?: number
   timestamp?: number
@@ -26,6 +26,7 @@ class ChatServiceClass {
     content: string
     newConversationId?: number
   }> {
+    // Cancel any existing request
     this.abort()
 
     const ctrl = new AbortController()
@@ -45,13 +46,10 @@ class ChatServiceClass {
 
     let stateKey: number | 'pending' = conversationId ?? 'pending'
 
-    console.log('🚀 Starting stream')
-
-    // ✅ START: Set isAnswering (entire cycle)
+    // ✅ Initialize state immediately
     setIsAnswering(true)
     setThinking(false)
     setStreaming(false)
-
     clearStreamingState(stateKey)
 
     let fullResponse = ''
@@ -73,131 +71,146 @@ class ChatServiceClass {
       })
 
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`)
+        const errorText = await response.text()
+        throw new Error(`Server error (${response.status}): ${errorText}`)
       }
       
       if (!response.body) {
-        throw new Error('No response body')
+        throw new Error('No response body from server')
       }
 
       const reader = response.body.getReader()
       const decoder = new TextDecoder()
+      let buffer = ''
 
       while (true) {
         const { done, value } = await reader.read()
         if (done) break
 
-        const chunk = decoder.decode(value)
-        const lines = chunk.split('\n')
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n')
+        
+        // Keep last incomplete line in buffer
+        buffer = lines.pop() || ''
 
         for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const data = line.slice(6)
-            if (data === '[DONE]') break
+          if (!line.trim() || !line.startsWith('data: ')) continue
+          
+          const data = line.slice(6).trim()
+          if (data === '[DONE]') break
 
-            try {
-              const event: StreamEvent = JSON.parse(data)
+          try {
+            const event: StreamEvent = JSON.parse(data)
 
-              switch (event.type) {
-                case 'metadata':
-                  if (event.conversation_id && !conversationId) {
-                    newConversationId = event.conversation_id
-                    setCurrentConversationId(newConversationId)
-                    setViewMode('chat')
-                    
-                    if (stateKey === 'pending') {
-                      migrateStreamingState('pending', newConversationId)
-                      stateKey = newConversationId
-                    }
-                  }
-                  break
-
-                case 'thinking_start':
-                  console.log('🧠 Thinking started')
-                  setThinking(true)
-                  upsertStreamingState(stateKey, {
-                    thinkingSteps: [],
-                    thinkingComplete: false,
-                    streamingMessage: ''
-                  })
-                  break
-
-                case 'thinking_step':
-                  if (event.content && event.step !== undefined && event.timestamp !== undefined) {
-                    upsertStreamingState(stateKey, (prev) => ({
-                      ...prev,
-                      thinkingSteps: [
-                        ...prev.thinkingSteps,
-                        {
-                          content: event.content!,
-                          step: event.step!,
-                          timestamp: event.timestamp!,
-                        },
-                      ],
-                    }))
-                  }
-                  break
-
-                case 'thinking_complete':
-                  console.log('✅ Thinking complete:', event.duration, 's')
-                  setThinking(false)
-                  upsertStreamingState(stateKey, {
-                    thinkingComplete: true,
-                    thinkingDuration: event.duration,
-                  })
-                  break
-
-                case 'response':
-                  // First response token - start streaming
-                  if (fullResponse.length === 0) {
-                    console.log('📡 Streaming started')
-                    setStreaming(true)
-                  }
+            switch (event.type) {
+              case 'metadata':
+                if (event.conversation_id && !conversationId) {
+                  newConversationId = event.conversation_id
+                  setCurrentConversationId(newConversationId)
+                  setViewMode('chat')
                   
-                  if (event.content !== undefined) {
-                    fullResponse += event.content
-                    upsertStreamingState(stateKey, (prev) => ({
-                      ...prev,
-                      streamingMessage: prev.streamingMessage + event.content!,
-                    }))
+                  // Migrate pending state to real conversation
+                  if (stateKey === 'pending') {
+                    migrateStreamingState('pending', newConversationId)
+                    stateKey = newConversationId
                   }
-                  break
+                }
+                break
 
-                case 'error':
-                  console.error('❌ Stream error:', event.message)
-                  throw new Error(event.message || 'Stream error')
-              }
-            } catch (e) {
-              if (e instanceof Error && e.message !== 'Stream error') {
-                console.error('Failed to parse SSE:', e)
-              } else {
-                throw e
-              }
+              case 'thinking_start':
+                setThinking(true)
+                upsertStreamingState(stateKey, {
+                  thinkingSteps: [],
+                  thinkingComplete: false,
+                  streamingMessage: ''
+                })
+                break
+
+              case 'thinking_step':
+                if (event.content && event.step !== undefined) {
+                  upsertStreamingState(stateKey, (prev) => ({
+                    ...prev,
+                    thinkingSteps: [
+                      ...prev.thinkingSteps,
+                      {
+                        content: event.content!,
+                        step: event.step!,
+                        timestamp: event.timestamp || Date.now(),
+                      },
+                    ],
+                  }))
+                }
+                break
+
+              case 'thinking_complete':
+                setThinking(false)
+                setStreaming(true)  // About to start streaming response
+                upsertStreamingState(stateKey, {
+                  thinkingComplete: true,
+                  thinkingDuration: event.duration,
+                })
+                break
+
+              case 'response':
+                if (event.content !== undefined) {
+                  fullResponse += event.content
+                  upsertStreamingState(stateKey, (prev) => ({
+                    ...prev,
+                    streamingMessage: prev.streamingMessage + event.content!,
+                  }))
+                }
+                break
+
+              case 'complete':
+                // Stream completed successfully
+                break
+
+              case 'error':
+                throw new Error(event.message || 'Stream error from server')
             }
+          } catch (parseError) {
+            if (parseError instanceof Error && parseError.message.startsWith('Stream error')) {
+              throw parseError
+            }
+            console.warn('Failed to parse SSE line:', line, parseError)
           }
         }
+      }
+
+      // Ensure we got a response
+      if (!fullResponse.trim()) {
+        throw new Error('Empty response from server')
       }
 
       return {
         content: fullResponse.trim(),
         newConversationId,
       }
+
     } catch (error) {
-      if (error instanceof Error && error.name !== 'AbortError') {
-        console.error('❌ Stream error:', error)
-        
-        // Show toast notification
-        const { addToast } = useToastStore.getState()
-        addToast({
-          type: 'error',
-          message: error.message || 'Failed to send message',
-          duration: 5000
-        })
+      // Don't show error for user-initiated aborts
+      if (error instanceof Error && error.name === 'AbortError') {
+        console.log('Stream aborted by user')
+        return { content: '' }
       }
+
+      // Show error toast for real errors
+      const { addToast } = useToastStore.getState()
+      const errorMessage = error instanceof Error 
+        ? error.message 
+        : 'Failed to send message'
+      
+      addToast({
+        type: 'error',
+        message: errorMessage,
+        duration: 5000
+      })
+
+      console.error('Stream error:', error)
       throw error
+
     } finally {
-      // ✅ END: Clear all flags
-      console.log('✅ Stream finished')
+      // ✅ Always clean up state
       setIsAnswering(false)
       setThinking(false)
       setStreaming(false)
@@ -207,10 +220,10 @@ class ChatServiceClass {
 
   abort() {
     if (this.currentAbortController) {
-      console.log('🛑 Aborting stream')
       this.currentAbortController.abort()
       this.currentAbortController = null
 
+      // Clean up state immediately
       const { setIsAnswering, setThinking, setStreaming } = useAppStore.getState()
       setIsAnswering(false)
       setThinking(false)
