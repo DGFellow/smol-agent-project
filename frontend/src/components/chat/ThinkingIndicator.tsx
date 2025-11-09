@@ -1,164 +1,110 @@
-// src/components/chat/ThinkingIndicator.tsx
-/**
- * ThinkingIndicator - Shows AI thinking process
- * 
- * Features:
- * - Expandable/collapsible steps
- * - Duration badge
- * - Smooth animations
- * - Stays visible in message history
- */
-
-import React, { useEffect, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Clock, ChevronDown, ChevronUp } from 'lucide-react';
+import { useEffect, useState } from 'react'
 
 interface ThinkingStep {
-  content: string;
-  step: number;
-  timestamp: number;
+  content: string
+  step: number
+  timestamp: number
 }
 
 interface ThinkingIndicatorProps {
-  steps?: ThinkingStep[];
-  isComplete?: boolean;
-  duration?: number;
+  steps?: ThinkingStep[]
+  complete?: boolean
+  duration?: number
 }
 
-export const ThinkingIndicator: React.FC<ThinkingIndicatorProps> = ({
-  steps = [],
-  isComplete = false,
-  duration
-}) => {
-  const [elapsedTime, setElapsedTime] = useState(0);
-  const [isExpanded, setIsExpanded] = useState(true);
+export default function ThinkingIndicator({ 
+  steps = [], 
+  complete = false,
+  duration 
+}: ThinkingIndicatorProps) {
+  const [dots, setDots] = useState('')
 
-  // Timer for elapsed time
   useEffect(() => {
-    if (!isComplete) {
-      const interval = setInterval(() => {
-        setElapsedTime(prev => prev + 0.1);
-      }, 100);
-      return () => clearInterval(interval);
-    } else if (duration) {
-      setElapsedTime(duration);
-    }
-  }, [isComplete, duration]);
+    if (complete) return
 
-  // Collapse after completion (optional)
-  useEffect(() => {
-    if (isComplete && steps.length > 0) {
-      // Auto-collapse after 3 seconds
-      const timeout = setTimeout(() => {
-        setIsExpanded(false);
-      }, 3000);
-      return () => clearTimeout(timeout);
-    }
-  }, [isComplete, steps.length]);
+    const interval = setInterval(() => {
+      setDots(prev => prev.length >= 3 ? '' : prev + '.')
+    }, 500)
+
+    return () => clearInterval(interval)
+  }, [complete])
+
+  if (complete && steps.length === 0) {
+    return null
+  }
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: -10 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -10 }}
-      className="thinking-container bg-gray-800/80 backdrop-blur-sm rounded-xl p-4 border border-gray-700/50 shadow-lg"
-    >
-      {/* Header */}
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-3">
-          {!isComplete ? (
-            <>
-              {/* Animated spinner */}
-              <div className="thinking-spinner flex gap-1">
-                <motion.div
-                  className="w-1.5 h-1.5 bg-blue-400 rounded-full"
-                  animate={{ scale: [1, 1.3, 1], opacity: [1, 0.5, 1] }}
-                  transition={{ duration: 1, repeat: Infinity, delay: 0 }}
-                />
-                <motion.div
-                  className="w-1.5 h-1.5 bg-blue-400 rounded-full"
-                  animate={{ scale: [1, 1.3, 1], opacity: [1, 0.5, 1] }}
-                  transition={{ duration: 1, repeat: Infinity, delay: 0.2 }}
-                />
-                <motion.div
-                  className="w-1.5 h-1.5 bg-blue-400 rounded-full"
-                  animate={{ scale: [1, 1.3, 1], opacity: [1, 0.5, 1] }}
-                  transition={{ duration: 1, repeat: Infinity, delay: 0.4 }}
-                />
-              </div>
-              <span className="text-gray-300 font-medium text-sm">Thinking...</span>
-            </>
-          ) : (
-            <>
-              <Clock className="w-4 h-4 text-green-400" />
-              <span className="text-gray-300 font-medium text-sm">
-                Thought for {elapsedTime.toFixed(1)}s
-              </span>
-            </>
-          )}
-        </div>
-        
-        {/* Expand/Collapse button */}
-        {steps.length > 0 && (
-          <button
-            onClick={() => setIsExpanded(!isExpanded)}
-            className="p-1 hover:bg-gray-700 rounded transition-colors"
-            aria-label={isExpanded ? 'Collapse' : 'Expand'}
+    <div className="flex items-start gap-3 px-4 py-3 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20 rounded-lg border border-blue-200 dark:border-blue-800/30 animate-in fade-in slide-in-from-top-2 duration-300">
+      {/* Animated thinking icon */}
+      <div className="flex-shrink-0 mt-1">
+        {complete ? (
+          <svg 
+            className="w-5 h-5 text-green-500 animate-in zoom-in duration-200" 
+            fill="none" 
+            viewBox="0 0 24 24" 
+            stroke="currentColor"
           >
-            {isExpanded ? (
-              <ChevronUp className="w-4 h-4 text-gray-400" />
-            ) : (
-              <ChevronDown className="w-4 h-4 text-gray-400" />
-            )}
-          </button>
-        )}
-        
-        {/* Status badge */}
-        {isComplete && (
-          <motion.span
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            className="px-2 py-0.5 bg-green-500/20 text-green-400 text-xs font-semibold rounded-full"
-          >
-            Done
-          </motion.span>
+            <path 
+              strokeLinecap="round" 
+              strokeLinejoin="round" 
+              strokeWidth={2} 
+              d="M5 13l4 4L19 7" 
+            />
+          </svg>
+        ) : (
+          <div className="relative w-5 h-5">
+            <div className="absolute inset-0 rounded-full bg-blue-500/20 animate-ping" />
+            <div className="relative w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center">
+              <svg 
+                className="w-3 h-3 text-white animate-pulse" 
+                fill="currentColor" 
+                viewBox="0 0 20 20"
+              >
+                <path 
+                  fillRule="evenodd" 
+                  d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" 
+                  clipRule="evenodd" 
+                />
+              </svg>
+            </div>
+          </div>
         )}
       </div>
 
-      {/* Thinking Steps - Collapsible */}
-      <AnimatePresence>
-        {isExpanded && steps.length > 0 && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.3 }}
-            className="overflow-hidden"
-          >
-            <div className="space-y-1.5 mt-3 pt-3 border-t border-gray-700/50">
-              {steps.map((step, index) => (
-                <motion.div
-                  key={index}
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: index * 0.05 }}
-                  className="flex items-start gap-2 text-sm"
-                >
-                  <span className="text-blue-400 font-mono text-xs mt-0.5">•</span>
-                  <span className="text-gray-400 flex-1">{step.content}</span>
-                </motion.div>
-              ))}
-            </div>
-          </motion.div>
+      {/* Thinking content */}
+      <div className="flex-1 min-w-0">
+        {steps.length > 0 ? (
+          <div className="space-y-1.5">
+            {steps.map((step, index) => (
+              <div
+                key={step.step}
+                className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 animate-in slide-in-from-left duration-300"
+                style={{ animationDelay: `${index * 100}ms` }}
+              >
+                <span className="flex-shrink-0 w-5 h-5 rounded-full bg-blue-500 text-white text-xs flex items-center justify-center font-medium">
+                  {step.step}
+                </span>
+                <span>{step.content}</span>
+                {index === steps.length - 1 && !complete && (
+                  <span className="text-blue-500 font-medium">{dots}</span>
+                )}
+              </div>
+            ))}
+            {complete && duration !== undefined && (
+              <div className="text-xs text-gray-500 dark:text-gray-400 mt-2 flex items-center gap-1">
+                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Completed in {duration.toFixed(1)}s
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+            <span>Thinking{dots}</span>
+          </div>
         )}
-      </AnimatePresence>
-
-      {/* Collapsed preview */}
-      {!isExpanded && steps.length > 0 && (
-        <div className="text-xs text-gray-500 mt-2">
-          {steps.length} step{steps.length !== 1 ? 's' : ''} • Click to expand
-        </div>
-      )}
-    </motion.div>
-  );
-};
+      </div>
+    </div>
+  )
+}
